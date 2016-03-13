@@ -1,0 +1,24 @@
+---
+
+# itermのshellをzshに変えてから
+- name: git clone & pull [Prezto] ’tomoya-k31/prezto’
+  git:
+    repo: "https://github.com/tomoya-k31/prezto.git"
+    dest: "~/.zprezto"
+    version: master
+    accept_hostkey: yes # known_hostsに存在しないホストに対しての接続の時に警告を出さない? -> StrictHostKeyChecking:noと同じ
+
+- name: check is exist dir '~/.zprezto'
+  stat:
+    path: ~/.zprezto
+  register: zprezto_dir
+
+- name: init
+  shell: |
+    setopt EXTENDED_GLOB
+    for rcfile in "${ZDOTDIR:-$HOME}"/.zprezto/runcoms/^README.md(.N); do
+      ln -s "$rcfile" "${ZDOTDIR:-$HOME}/.${rcfile:t}"
+    done
+  args:
+    executable: /usr/local/bin/zsh
+  when: zprezto_dir.stat.exists is undefined or zprezto_dir.stat.exists == False

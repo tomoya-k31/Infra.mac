@@ -1,0 +1,16 @@
+---
+
+- name: generate shell script 'git config --global ...'
+  template:
+    src: gitconfig.j2
+    dest: ~/write_gitconfig.sh
+    mode: 0744 # 実行権限付与
+  when: git_config
+
+- name: execute shell script
+  shell: ~/write_gitconfig.sh
+
+- name: remove shell script
+  file:
+    path: ~/write_gitconfig.sh
+    state: absent

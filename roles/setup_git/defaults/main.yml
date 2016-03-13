@@ -1,0 +1,20 @@
+---
+
+git_config:
+  user:
+    name: tomoya-k31
+    email: chacogre@gmail.com
+  color:
+    branch: auto
+    diff: auto
+    interactive: auto
+    status: auto
+    ui: auto
+  core:
+    editor: 'vim -c "set fenc=utf-8"'
+    precomposeunicode: true
+    quotepath: false
+  diff:
+    tool: vimdiff
+  push:
+    default: simple

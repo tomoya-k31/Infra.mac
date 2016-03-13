@@ -1,0 +1,15 @@
+---
+
+- name: Is exists Directory
+  stat:
+    path: ~/.sdkman
+  register: sdkman_dir
+  # registerに使う変数に'-'は使えない
+
+- debug:
+    msg: "存在する directory path:{{ sdkman_dir }} 存在可否:{{ sdkman_dir.stat.exists }}"
+  when: sdkman_dir.stat.exists is defined and sdkman_dir.stat.exists == True
+
+- debug:
+    msg: "存在しない directory path:{{ sdkman_dir }} 存在可否:{{ sdkman_dir.stat.exists }}"
+  when: sdkman_dir.stat.exists is undefined or sdkman_dir.stat.exists == False

@@ -1,0 +1,18 @@
+---
+
+- name: create direcotry '~/.vim/bundle'
+  file:
+    path: ~/.vim/bundle
+    state: directory
+
+- name: git clone & pull [Prezto] ’Shougo/neobundle.vim’
+  git:
+    repo: "https://github.com/Shougo/neobundle.vim"
+    dest: "~/.vim/bundle/neobundle.vim"
+    version: master
+    accept_hostkey: yes
+
+- name: install neobundle.vim
+  shell: "bin/neoinstall"
+  args:
+    chdir: "~/.vim/bundle/neobundle.vim/"

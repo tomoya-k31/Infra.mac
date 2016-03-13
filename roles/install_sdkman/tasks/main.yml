@@ -1,0 +1,14 @@
+---
+- name: check is exist dir '~/.sdkman'
+  stat:
+    path: ~/.sdkman
+  register: sdkman_dir
+  # registerに使う変数に'-'は使えない
+
+- name: install and init
+  shell: |
+    curl -s get.sdkman.io | bash
+    source "~/.sdkman/bin/sdkman-init.sh"
+  args:
+    executable: /bin/bash
+  when: sdkman_dir.stat.exists is undefined or sdkman_dir.stat.exists == False

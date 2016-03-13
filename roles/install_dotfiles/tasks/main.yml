@@ -1,0 +1,38 @@
+---
+
+- name: git clone & pull 'tomoya-k31/dotfiles' -> '~/.dotfiles'
+  git:
+    repo: "https://github.com/tomoya-k31/dotfiles"
+    dest: "~/.dotfiles"
+    version: master
+    accept_hostkey: yes
+
+# .dotfilesディレクトリからドットファイルリストを取得して変数'dotfiles_to_symlink'に格納
+- name: regist dotfiles List
+  shell: find ~/.dotfiles -type f -name ".*" -depth 1 -exec basename {} \; | grep -v -e DS_Store -e CFUserTextEncoding
+  args:
+    executable: /bin/bash
+  register: dotfiles_to_symlink
+
+- name: create symlinks dotfiles
+  file:
+    path: ~/{{ item }}
+    src: "~/.dotfiles/{{ item }}"
+    state: link
+    force: yes
+  with_items: "{{ dotfiles_to_symlink.stdout_lines }}"
+
+# Tmux Plugin Manager
+- name: git clone & pull [Tmux Plugin Manager] 'tmux-plugins/tpm' -> '~/.tmux/plugins/tpm'
+  git:
+    repo: "https://github.com/tmux-plugins/tpm"
+    dest: "~/.tmux/plugins/tpm"
+    version: master
+    accept_hostkey: yes
+
+# Powerline
+- name: pip install [Powerline]
+  pip:
+    name: 'powerline-status'
+    executable: /usr/local/bin/pip2.7
+    extra_args: '--user'

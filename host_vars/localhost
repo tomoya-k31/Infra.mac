@@ -1,0 +1,34 @@
+---
+homebrew_packages:
+  - autoconf
+  - gawk
+  - jq
+  - peco
+  - xz
+  - binutils
+  - gdb
+  - pkg-config
+  - zsh
+  - carthage
+  - gdbm
+  - python
+  - tmux
+  - coreutils
+  - git
+  - rbenv
+  - tree
+  - direnv
+  - gnu-sed
+  - readline
+  - vim
+  - go
+  - openssl
+  - reattach-to-user-namespace
+  - watch
+  - findutils
+  - pcre
+  - ruby-build
+  - wget
+
+gitconfig_template:
+  path: "~/.ansible_local_mac/roles/setup_git/templates/"
