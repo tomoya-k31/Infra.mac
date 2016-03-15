@@ -11,7 +11,7 @@ git_config:
     status: auto
     ui: auto
   core:
-    editor: vim
+    editor: "'vim -c \"set fenc=utf-8\"'"
     precomposeunicode: true
     quotepath: false
   diff:
