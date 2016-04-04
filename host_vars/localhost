@@ -29,6 +29,7 @@ homebrew_packages:
   - pcre
   - ruby-build
   - wget
+  - sbt
 
 gitconfig_template:
   path: "~/.ansible_local_mac/roles/setup_git/templates/"
