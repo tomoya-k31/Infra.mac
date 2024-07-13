@@ -64,6 +64,7 @@
         - { name: nodejs, git: https://github.com/asdf-vm/asdf-nodejs.git }
         - { name: python, git: https://github.com/danhper/asdf-python.git }
         - { name: java,   git: https://github.com/halcyon/asdf-java.git }
+        - { name: direnv, git: https://github.com/asdf-community/asdf-direnv.git }
 
     - name: Install Default python
       shell: |
@@ -85,3 +86,10 @@
         asdf global ruby 3.3.4
         # gem install bundler
         # gem install cocoapods
+
+    - name: Install Default direnv
+      shell: |
+        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
+        asdf install direnv latest
+        asdf global direnv latest
+        asdf direnv setup --shell zsh --version latest
