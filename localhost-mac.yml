@@ -24,7 +24,7 @@
           'tmux', 'tmuxinator',
           'opentofu',
           # extend
-          'bat', 'exa',
+          'bat', 'exa', 'fd',
           'fzf',
           'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
           # etc
