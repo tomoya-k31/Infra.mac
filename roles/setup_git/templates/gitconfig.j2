@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-{% for section, values in git_config.iteritems() %}
-{% for key, value in values.iteritems() %}
-git config --global {{ section }}.{{ key }} {{ value }}
-{% endfor %}
-{% endfor %}

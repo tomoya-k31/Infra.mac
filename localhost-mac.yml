@@ -1,0 +1,87 @@
+- name: Infra.mac playbook
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars_files:
+    - vars/git_config.yml
+  environment:
+    # 未設定の場合、/opt/homebrew-cask/Caskroomになる
+    HOMEBREW_CASK_OPTS: "--appdir=/Applications"
+  # roles:
+    # - install_dotfiles
+  tasks:
+    - name: Install homebrew packages
+      community.general.homebrew:
+        name: [
+          # common
+          'git',
+          'jq',
+          'yq',
+          'wget',
+          'tree',
+          'openssl',
+          'vim', 'neovim',
+          'tmux', 'tmuxinator',
+          'opentofu',
+          # extend
+          'bat', 'exa',
+          'fzf',
+          'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
+          # etc
+          'readline', 'reattach-to-user-namespace',        # terminal
+          'awscli',                                        # aws
+          'docker', 'docker-compose', 'docker-completion', # docker
+          'toilet',                                        # ascii
+          'gpg',                                           # for asdf 
+          'gawk',                                          # for asdf
+        ]
+        state: present
+        update_homebrew: yes
+    
+    - name: Install asdf
+      git:
+        repo: https://github.com/asdf-vm/asdf.git
+        dest: "/Users/{{ lookup('env', 'USER') }}/.asdf"
+
+    - name: Ensures .config/asdf dir exists
+      file: 
+        path: /Users/{{ lookup('env', 'USER') }}/.config/asdf
+        state: directory
+
+    - name: Create a default asdf configuration
+      ansible.builtin.copy:
+        src: templates/.asdfrc
+        dest: /Users/{{ lookup('env', 'USER') }}/.config/asdf/asdfrc
+        owner: "{{ lookup('env', 'USER') }}"
+        force: yes
+
+    - name: Install asdf plugins
+      shell: |
+        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
+        asdf plugin-add {{ item.name }} {{ item.git }} || exit 0
+      with_items:
+        - { name: ruby,   git: https://github.com/asdf-vm/asdf-ruby.git }
+        - { name: nodejs, git: https://github.com/asdf-vm/asdf-nodejs.git }
+        - { name: python, git: https://github.com/danhper/asdf-python.git }
+        - { name: java,   git: https://github.com/halcyon/asdf-java.git }
+
+    - name: Install Default python
+      shell: |
+        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
+        asdf install python 3.12.4
+        asdf global python 3.12.4
+        asdf reshim python
+
+    - name: Install default nodejs
+      shell: |
+        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
+        asdf install nodejs 22.4.1
+        asdf global nodejs 22.4.1
+
+    - name: Install Default ruby
+      shell: |
+        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
+        asdf install ruby 3.3.4
+        asdf global ruby 3.3.4
+        # gem install bundler
+        # gem install cocoapods

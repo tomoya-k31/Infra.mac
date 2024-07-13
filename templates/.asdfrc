@@ -1,0 +1,8 @@
+legacy_version_file = yes
+java_macos_integration_enable=yes
+always_keep_download = yes
+
+use_release_candidates = no
+plugin_repository_last_check_duration = 60
+disable_plugin_short_name_repository = no
+concurrency = auto
