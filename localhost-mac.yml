@@ -26,7 +26,7 @@
           # extend
           'bat', 'exa', 'fd',
           'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
-          'fzf',
+          'fzf', 'expect',
           # etc
           'readline', 'reattach-to-user-namespace',        # terminal
           'awscli',                                        # aws
