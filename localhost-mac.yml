@@ -93,3 +93,10 @@
         asdf install direnv latest
         asdf global direnv latest
         asdf direnv setup --shell zsh --version latest
+
+    - name: Setup asdf-python configuration
+      ansible.builtin.copy:
+        src: templates/.default-python-packages
+        dest: /Users/{{ lookup('env', 'USER') }}/.default-python-packages
+        owner: "{{ lookup('env', 'USER') }}"
+        force: yes
