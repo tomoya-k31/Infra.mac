@@ -28,13 +28,13 @@
           'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
           'fzf', 'expect',
           # etc
-          'readline', 'reattach-to-user-namespace',        # terminal
-          'awscli',                                        # aws
-          'kubectl', 'kind',                               # k8s
-          'docker', 'docker-compose', 'docker-completion', # docker
-          'toilet',                                        # ascii
-          'gpg',                                           # for asdf 
-          'gawk',                                          # for asdf
+          'readline', 'reattach-to-user-namespace',           # terminal
+          'awscli',                                           # aws
+          'kubectl', 'kind', 'kubecolor', 'derailed/k9s/k9s', # k8s
+          'docker', 'docker-compose', 'docker-completion',    # docker
+          'toilet',                                           # ascii
+          'gpg',                                              # for asdf 
+          'gawk',                                             # for asdf
         ]
         state: present
         update_homebrew: yes
@@ -104,3 +104,12 @@
 
     - name: Install Krew
       script: "{{ playbook_dir }}/scripts/install_krew.sh"
+    - name: Install Krew plugins
+      shell: "kubectl krew install {{ item }}"
+      with_items:
+        - stern
+        - ctx
+        - ns
+        - rolesum
+        - access-matrix
+
