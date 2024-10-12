@@ -30,6 +30,7 @@
           # etc
           'readline', 'reattach-to-user-namespace',        # terminal
           'awscli',                                        # aws
+          'kubectl', 'kind',                               # k8s
           'docker', 'docker-compose', 'docker-completion', # docker
           'toilet',                                        # ascii
           'gpg',                                           # for asdf 
@@ -100,3 +101,6 @@
         dest: /Users/{{ lookup('env', 'USER') }}/.default-python-packages
         owner: "{{ lookup('env', 'USER') }}"
         force: yes
+
+    - name: Install Krew
+      script: "{{ playbook_dir }}/scripts/install_krew.sh"
