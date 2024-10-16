@@ -2,13 +2,9 @@
   hosts: localhost
   gather_facts: false
   connection: local
-  vars_files:
-    - vars/git_config.yml
   environment:
     # 未設定の場合、/opt/homebrew-cask/Caskroomになる
     HOMEBREW_CASK_OPTS: "--appdir=/Applications"
-  # roles:
-    # - install_dotfiles
   tasks:
     - name: Install homebrew packages
       community.general.homebrew:
@@ -112,4 +108,5 @@
         - ns
         - rolesum
         - access-matrix
+        - cost
 
