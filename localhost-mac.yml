@@ -31,6 +31,7 @@
           'toilet',                                           # ascii
           'gpg',                                              # for asdf 
           'gawk',                                             # for asdf
+          'uv',                                               # python
         ]
         state: present
         update_homebrew: yes
