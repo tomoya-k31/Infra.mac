@@ -19,14 +19,15 @@
           'vim', 'neovim',
           'tmux', 'tmuxinator',
           'opentofu',
+          'zoxide',
           # extend
-          'bat', 'exa', 'fd',
+          'bat', 'eza', 'fd',
           'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
           'fzf', 'expect',
           # etc
           'readline', 'reattach-to-user-namespace',           # terminal
           'awscli',                                           # aws
-          'kubectl', 'kind', 'kubecolor', 'derailed/k9s/k9s', # k8s
+          'kubectl', 'kind', 'kubecolor', 'k9s',              # k8s
           'docker', 'docker-compose', 'docker-completion',    # docker
           'toilet',                                           # ascii
           'gpg',                                              # for asdf 
@@ -111,3 +112,7 @@
         - access-matrix
         - cost
 
+    - name: Install Rust by rustup
+      shell: curl https://sh.rustup.rs -sSf | sh -s -- -y
+    - name: Install Starship
+      shell: curl -sS https://starship.rs/install.sh | sh -s -- -y
