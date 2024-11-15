@@ -16,7 +16,7 @@
         name: [
           # common
           'git', 'git-secrets',
-          'jq',
+          'jq', 'nkf',
           'yq',
           'wget',
           'tree',
