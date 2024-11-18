@@ -125,18 +125,3 @@
       shell: curl -sS https://starship.rs/install.sh | sh -s -- -y
     - name: Install SDKMAN
       shell: curl -s "https://get.sdkman.io" | bash -s -- -y
-
-
-    - name: Create ~/Screenshots directory if it doesn't exist
-      file:
-        path: ~/Screenshots
-        state: directory
-        mode: '0755'    
-    - name: Set screenshot location to ~/Screenshots
-      community.general.osx_defaults:
-        domain: com.apple.screencapture
-        key: location
-        value: ~/Screenshots/
-    - name: Restart Finder to apply screenshot location change
-      command: killall Finder
-      ignore_errors: yes
