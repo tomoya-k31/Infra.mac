@@ -71,6 +71,7 @@
         - { name: python, git: https://github.com/danhper/asdf-python.git }
         - { name: java,   git: https://github.com/halcyon/asdf-java.git }
         - { name: direnv, git: https://github.com/asdf-community/asdf-direnv.git }
+        - { name: golang, git: https://github.com/asdf-community/asdf-golang.git }
 
     - name: Install Default python
       shell: |
