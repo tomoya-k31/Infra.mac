@@ -38,6 +38,7 @@
           'gpg',                                              # for asdf 
           'gawk',                                             # for asdf
           'uv',                                               # python
+          'alp', 'graphviz',                                  # for isucon
           # tap
           'pokemonsay',
         ]
