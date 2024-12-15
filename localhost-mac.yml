@@ -10,6 +10,7 @@
       community.general.homebrew_tap:
         name: [
           'possatti/possatti', # pokemonsay
+          'pulumi/tap',        # pulumi
         ]
     - name: Install homebrew packages
       community.general.homebrew:
@@ -23,16 +24,16 @@
           'openssl',
           'vim', 'neovim',
           'tmux', 'tmuxinator',
-          'opentofu',
           'zoxide',
           # extend
           'bat', 'eza', 'fd',
           'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
           'fzf', 'expect',
           # etc
+          'opentofu', 'pulumi/tap/pulumi', 'pulumi/tap/esc',  # IaC
           'readline', 'reattach-to-user-namespace',           # terminal
           'awscli',                                           # aws
-          'kubectl', 'kind', 'kubecolor', 'k9s',              # k8s
+          'kubectl', 'kind', 'kubecolor', 'k9s', 'helm',      # k8s
           'docker', 'docker-compose', 'docker-completion',    # docker
           'toilet',                                           # ascii
           'gpg',                                              # for asdf 
