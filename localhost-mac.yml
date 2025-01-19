@@ -39,6 +39,7 @@
           'gpg',                                              # for asdf 
           'gawk',                                             # for asdf
           'uv',                                               # python
+          'delve',                                            # golang
           'alp', 'graphviz', 'mysql-client',                  # for isucon
           # tap
           'pokemonsay',
