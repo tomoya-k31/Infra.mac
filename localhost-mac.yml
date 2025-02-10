@@ -11,6 +11,7 @@
         name: [
           'possatti/possatti', # pokemonsay
           'pulumi/tap',        # pulumi
+          # 'keyclu',        # KeyClu
         ]
     - name: Install homebrew packages
       community.general.homebrew:
@@ -28,89 +29,25 @@
           # extend
           'bat', 'eza', 'fd',
           'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
-          'fzf', 'expect',
+          'fzf', 'expect', 'mise', 'gpg', 'gnupg',
           # etc
-          'opentofu', 'pulumi/tap/pulumi', 'pulumi/tap/esc',  # IaC
+          'opentofu',                                         # IaC
           'readline', 'reattach-to-user-namespace',           # terminal
           'awscli',                                           # aws
           'kubectl', 'kind', 'kubecolor', 'k9s', 'helm',      # k8s
           'docker', 'docker-compose', 'docker-completion',    # docker
           'toilet',                                           # ascii
-          'gpg',                                              # for asdf 
-          'gawk',                                             # for asdf
           'uv',                                               # python
           'delve',                                            # golang
           'alp', 'graphviz', 'mysql-client',                  # for isucon
           # tap
           'pokemonsay',
+          'pulumi/tap/pulumi', 'pulumi/tap/esc',              # IaC
+          'keyclu'
         ]
         state: present
         update_homebrew: yes
     
-    - name: Install asdf
-      git:
-        repo: https://github.com/asdf-vm/asdf.git
-        dest: "/Users/{{ lookup('env', 'USER') }}/.asdf"
-
-    - name: Ensures .config/asdf dir exists
-      file: 
-        path: /Users/{{ lookup('env', 'USER') }}/.config/asdf
-        state: directory
-
-    - name: Create a default asdf configuration
-      ansible.builtin.copy:
-        src: templates/.asdfrc
-        dest: /Users/{{ lookup('env', 'USER') }}/.config/asdf/asdfrc
-        owner: "{{ lookup('env', 'USER') }}"
-        force: yes
-
-    - name: Install asdf plugins
-      shell: |
-        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
-        asdf plugin-add {{ item.name }} {{ item.git }} || exit 0
-      with_items:
-        - { name: ruby,   git: https://github.com/asdf-vm/asdf-ruby.git }
-        - { name: nodejs, git: https://github.com/asdf-vm/asdf-nodejs.git }
-        - { name: python, git: https://github.com/danhper/asdf-python.git }
-        - { name: java,   git: https://github.com/halcyon/asdf-java.git }
-        - { name: direnv, git: https://github.com/asdf-community/asdf-direnv.git }
-        - { name: golang, git: https://github.com/asdf-community/asdf-golang.git }
-
-    - name: Install Default python
-      shell: |
-        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
-        asdf install python 3.12.4
-        asdf global python 3.12.4
-        asdf reshim python
-
-    - name: Install default nodejs
-      shell: |
-        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
-        asdf install nodejs 22.4.1
-        asdf global nodejs 22.4.1
-
-    - name: Install Default ruby
-      shell: |
-        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
-        asdf install ruby 3.3.4
-        asdf global ruby 3.3.4
-        # gem install bundler
-        # gem install cocoapods
-
-    - name: Install Default direnv
-      shell: |
-        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
-        asdf install direnv latest
-        asdf global direnv latest
-        asdf direnv setup --shell zsh --version latest
-
-    - name: Setup asdf-python configuration
-      ansible.builtin.copy:
-        src: templates/.default-python-packages
-        dest: /Users/{{ lookup('env', 'USER') }}/.default-python-packages
-        owner: "{{ lookup('env', 'USER') }}"
-        force: yes
-
     - name: Install Krew
       script: "{{ playbook_dir }}/scripts/install_krew.sh"
     - name: Install Krew plugins
