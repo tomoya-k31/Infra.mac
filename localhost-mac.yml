@@ -66,3 +66,14 @@
       shell: curl -sS https://starship.rs/install.sh | sh -s -- -y
     - name: Install SDKMAN
       shell: curl -s "https://get.sdkman.io" | bash -s -- -y
+
+    - name: Install Ryu
+      shell: curl -sSf https://rye.astral.sh/get | RYE_INSTALL_OPTION="--yes" bash
+    - name: Ensures .zfunc dir exists
+      file: 
+        path: /Users/{{ lookup('env', 'USER') }}/.zfunc
+        state: directory
+    - name: Install Rye zsh completions
+      shell: rye self completion -s zsh > /Users/{{ lookup('env', 'USER') }}/.zfunc/_rye
+    - name: Update Rye
+      shell: rye self update
