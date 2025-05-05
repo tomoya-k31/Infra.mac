@@ -1,0 +1,46 @@
+---
+# Homebrew関連のタスク
+
+- name: Tap a Homebrew repository
+  community.general.homebrew_tap:
+    name: [
+      'possatti/possatti', # pokemonsay
+      'pulumi/tap',        # pulumi
+    ]
+
+- name: Install homebrew packages
+  community.general.homebrew:
+    name: [
+      # common
+      'git', 'zsh',
+      'mise', 'starship', 'atuin','zoxide',
+      # 'git-secrets',
+      'jq', 'nkf',
+      'yq', 'gh',
+      'wget',
+      'pipx',
+      'tree',
+      'openssl',
+      'vim', 'neovim',
+      'tmux', 'tmuxinator',
+      # extend
+      'bat', 'eza', 'fd',
+      'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
+      'fzf', 'expect', 'gpg', 'gnupg',
+      # etc
+      'opentofu',                                         # IaC
+      # 'readline', 'reattach-to-user-namespace',           # terminal
+      'awscli',                                           # aws
+      'kubectl', 'kind', 'kubecolor', 'k9s', 'helm',      # k8s
+      # 'docker', 'docker-compose', 'docker-completion',    # docker
+      'toilet',                                           # ascii
+      # 'uv',                                               # python
+      'delve',                                            # golang
+      # 'alp', 'graphviz', 'mysql-client',                  # for isucon
+      # tap
+      'pokemonsay',
+      # 'pulumi/tap/pulumi', 'pulumi/tap/esc',              # IaC
+      'keyclu'
+    ]
+    state: present
+    update_homebrew: yes

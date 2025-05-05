@@ -1,0 +1,60 @@
+---
+# その他のツール関連のタスク
+
+- name: Install Krew
+  environment:
+    # export KREW_ROOT="$XDG_DATA_HOME/krew"
+    KREW_ROOT: "{{ lookup('env', 'XDG_DATA_HOME') }}/krew"
+  script: "{{ playbook_dir }}/scripts/install_krew.sh"
+
+- name: Install Krew plugins
+  shell: "kubectl krew install {{ item }}"
+  environment:
+    # export PATH="${KREW_ROOT:-$XDG_DATA_HOME/krew}/bin:$PATH"
+    PATH: "{{ lookup('env', 'XDG_DATA_HOME') }}/krew/bin:{{ lookup('env', 'PATH') }}"
+  with_items:
+    - stern
+    - ctx
+    - ns
+    - rolesum
+    - access-matrix
+    - cost
+
+- name: Install SOPS binary
+  block:
+    - name: Get OS and architecture
+      shell: |
+        OS="$(uname | tr '[:upper:]' '[:lower:]')"
+        ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')"
+        echo "${OS},${ARCH}"
+      register: os_arch
+      changed_when: false
+      check_mode: no
+
+    - name: Set OS and architecture variables
+      set_fact:
+        sops_os: "{{ os_arch.stdout.split(',')[0] }}"
+        sops_arch: "{{ os_arch.stdout.split(',')[1] }}"
+
+    - name: Set SOPS version
+      set_fact:
+        sops_version: "v3.10.1"
+
+    - name: Download SOPS binary
+      get_url:
+        url: "https://github.com/getsops/sops/releases/download/{{ sops_version }}/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
+        dest: "/tmp/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
+        mode: '0755'
+
+    - name: Create bin directory if it doesn't exist
+      file:
+        path: "{{ lookup('env', 'HOME') }}/.local/bin"
+        state: directory
+        mode: '0755'
+
+    - name: Move SOPS binary to PATH
+      copy:
+        src: "/tmp/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
+        dest: "{{ lookup('env', 'HOME') }}/.local/bin/sops"
+        mode: '0755'
+        remote_src: yes

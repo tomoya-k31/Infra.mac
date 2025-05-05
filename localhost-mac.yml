@@ -3,10 +3,6 @@
   gather_facts: false
   connection: local
 
-  environment:
-    # 未設定の場合、/opt/homebrew-cask/Caskroomになる
-    HOMEBREW_CASK_OPTS: "--appdir=/Applications"
-
   pre_tasks:
     - name: Set XDG environment variables if not defined
       set_fact:
@@ -20,123 +16,9 @@
           - "XDG_CONFIG_HOME: {{ xdg_config_home }}"
 
   tasks:
-    - name: Tap a Homebrew repository
-      community.general.homebrew_tap:
-        name: [
-          'possatti/possatti', # pokemonsay
-          'pulumi/tap',        # pulumi
-        ]
-    - name: Install homebrew packages
-      community.general.homebrew:
-        name: [
-          # common
-          'git', 'zsh',
-          'mise', 'starship', 'atuin','zoxide',
-          # 'git-secrets',
-          'jq', 'nkf',
-          'yq', 'gh',
-          'wget',
-          'pipx',
-          'tree',
-          'openssl',
-          'vim', 'neovim',
-          'tmux', 'tmuxinator',
-          # extend
-          'bat', 'eza', 'fd',
-          'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
-          'fzf', 'expect', 'gpg', 'gnupg',
-          # etc
-          'opentofu',                                         # IaC
-          # 'readline', 'reattach-to-user-namespace',           # terminal
-          'awscli',                                           # aws
-          'kubectl', 'kind', 'kubecolor', 'k9s', 'helm',      # k8s
-          # 'docker', 'docker-compose', 'docker-completion',    # docker
-          'toilet',                                           # ascii
-          # 'uv',                                               # python
-          'delve',                                            # golang
-          # 'alp', 'graphviz', 'mysql-client',                  # for isucon
-          # tap
-          'pokemonsay',
-          # 'pulumi/tap/pulumi', 'pulumi/tap/esc',              # IaC
-          'keyclu'
-        ]
-        state: present
-        update_homebrew: yes
-
-    - name: Install Krew
-      environment:
-        # export KREW_ROOT="$XDG_DATA_HOME/krew"
-        KREW_ROOT: "{{ lookup('env', 'XDG_DATA_HOME') }}/krew"
-      script: "{{ playbook_dir }}/scripts/install_krew.sh"
-    - name: Install Krew plugins
-      shell: "kubectl krew install {{ item }}"
-      environment:
-        # export PATH="${KREW_ROOT:-$XDG_DATA_HOME/krew}/bin:$PATH"
-        PATH: "{{ lookup('env', 'XDG_DATA_HOME') }}/krew/bin:{{ lookup('env', 'PATH') }}"
-      with_items:
-        - stern
-        - ctx
-        - ns
-        - rolesum
-        - access-matrix
-        - cost
-
-    - name: Install Rust by rustup
-      environment:
-        # export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
-        # export CARGO_HOME="$XDG_DATA_HOME/cargo"
-        RUSTUP_HOME: "{{ lookup('env', 'XDG_DATA_HOME') }}/rustup"
-        CARGO_HOME: "{{ lookup('env', 'XDG_DATA_HOME') }}/cargo"
-      shell: curl https://sh.rustup.rs -sSf | sh -s -- -y
-
-    - name: Install SDKMAN
-      environment:
-        # export SDKMAN_DIR="$XDG_DATA_HOME/sdkman"
-        SDKMAN_DIR: "{{ lookup('env', 'XDG_DATA_HOME') }}/sdkman"
-      shell: curl -s "https://get.sdkman.io" | bash -s -- -y
-
-    - name: Install Ryu
-      environment:
-        # export RYE_HOME="$XDG_DATA_HOME/rye"
-        RYE_HOME: "{{ lookup('env', 'XDG_DATA_HOME') }}/rye"
-      shell: curl -sSf https://rye.astral.sh/get | RYE_VERSION="0.44.0" RYE_INSTALL_OPTION="--yes" bash
-    - name: Update Rye
-      shell: rye self update
-
-    - name: Install SOPS binary
-      block:
-        - name: Get OS and architecture
-          shell: |
-            OS="$(uname | tr '[:upper:]' '[:lower:]')"
-            ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')"
-            echo "${OS},${ARCH}"
-          register: os_arch
-          changed_when: false
-
-        - name: Set OS and architecture variables
-          set_fact:
-            sops_os: "{{ os_arch.stdout.split(',')[0] }}"
-            sops_arch: "{{ os_arch.stdout.split(',')[1] }}"
-
-        - name: Set SOPS version
-          set_fact:
-            sops_version: "v3.10.1"
-
-        - name: Download SOPS binary
-          get_url:
-            url: "https://github.com/getsops/sops/releases/download/{{ sops_version }}/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
-            dest: "/tmp/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
-            mode: '0755'
-
-        - name: Create bin directory if it doesn't exist
-          file:
-            path: "{{ lookup('env', 'HOME') }}/.local/bin"
-            state: directory
-            mode: '0755'
-
-        - name: Move SOPS binary to PATH
-          copy:
-            src: "/tmp/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
-            dest: "{{ lookup('env', 'HOME') }}/.local/bin/sops"
-            mode: '0755'
-            remote_src: yes
+    - name: Include Homebrew tasks
+      import_tasks: tasks/homebrew.yml
+    - name: Include Language installation tasks
+      import_tasks: tasks/langs.yml
+    - name: Include Tools tasks
+      import_tasks: tasks/tools.yml
