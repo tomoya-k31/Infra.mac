@@ -98,15 +98,9 @@
       environment:
         # export RYE_HOME="$XDG_DATA_HOME/rye"
         RYE_HOME: "{{ lookup('env', 'XDG_DATA_HOME') }}/rye"
-      shell: curl -sSf https://rye.astral.sh/get | RYE_INSTALL_OPTION="--yes" bash
-    # - name: Ensures .zfunc dir exists
-    #   file:
-    #     path: /Users/{{ lookup('env', 'USER') }}/.zfunc
-    #     state: directory
-    # - name: Install Rye zsh completions
-    #   shell: rye self completion -s zsh > /Users/{{ lookup('env', 'USER') }}/.zfunc/_rye
-    # - name: Update Rye
-    #   shell: rye self update
+      shell: curl -sSf https://rye.astral.sh/get | RYE_VERSION="0.44.0" RYE_INSTALL_OPTION="--yes" bash
+    - name: Update Rye
+      shell: rye self update
 
     - name: Install SOPS binary
       block:
