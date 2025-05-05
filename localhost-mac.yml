@@ -36,6 +36,7 @@
           'jq', 'nkf',
           'yq', 'gh',
           'wget',
+          'pipx',
           'tree',
           'openssl',
           'vim', 'neovim',
