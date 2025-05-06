@@ -25,3 +25,10 @@
 
     - name: Update Rye
       shell: rye self update
+
+- name: Install pipx
+  shell: pip install --user pipx
+  when: pip_path is file
+  tags: [langs, pip, python]
+  vars:
+    pip_path: "{{ lookup('env', 'XDG_DATA_HOME') }}/mise/shims/pip"
