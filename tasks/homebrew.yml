@@ -19,7 +19,7 @@
       'yq', 'gh',
       'wget',
       'pipx',
-      'tree',
+      'tree', 'pstree',
       'openssl',
       'vim', 'neovim',
       'tmux', 'tmuxinator',
