@@ -13,7 +13,7 @@
     name: [
       # common
       'git', 'zsh',
-      'mise', 'starship', 'atuin','zoxide',
+      'mise', 'starship', 'zoxide',
       # 'git-secrets',
       'jq', 'nkf',
       'yq', 'gh',
@@ -27,6 +27,7 @@
       'bat', 'eza', 'fd',
       'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
       'fzf', 'expect', 'gpg', 'gnupg',
+      'git-delta',
       # etc
       'opentofu',                                         # IaC
       # 'readline', 'reattach-to-user-namespace',           # terminal

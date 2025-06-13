@@ -58,3 +58,24 @@
         dest: "{{ lookup('env', 'HOME') }}/.local/bin/sops"
         mode: '0755'
         remote_src: yes
+
+- name: Install and configure hishtory
+  block:
+    - name: Install hishtory
+      shell: curl https://hishtory.dev/install.py | python3 - --offline
+      args:
+        creates: "{{ lookup('env', 'HOME') }}/.hishtory/config.zsh"
+
+    - name: Source hishtory config
+      shell: source {{ lookup('env', 'HOME') }}/.hishtory/config.zsh
+      args:
+        executable: /bin/zsh
+
+    - name: Configure hishtory settings
+      shell: |
+        hishtory config-set filter-duplicate-commands true
+        hishtory syncing disable
+        hishtory config-set timestamp-format '2006/1/2 15:04'
+        hishtory config-set full-screen true
+      environment:
+        PATH: "{{ lookup('env', 'HOME') }}/.hishtory:{{ lookup('env', 'PATH') }}"
