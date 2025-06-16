@@ -12,7 +12,7 @@
   community.general.homebrew:
     name: [
       # common
-      'git', 'zsh',
+      'git', 'zsh', 'lazygit',
       'mise', 'starship', 'zoxide',
       # 'git-secrets',
       'jq', 'nkf',
