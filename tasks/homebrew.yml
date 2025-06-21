@@ -23,6 +23,7 @@
       'openssl',
       'vim', 'neovim',
       'tmux', 'tmuxinator',
+      'ngrok',
       # extend
       'bat', 'eza', 'fd',
       'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
