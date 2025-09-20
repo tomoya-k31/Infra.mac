@@ -4,45 +4,84 @@
 - name: Tap a Homebrew repository
   community.general.homebrew_tap:
     name: [
-      'possatti/possatti', # pokemonsay
-      'pulumi/tap',        # pulumi
+      # 'possatti/possatti', # pokemonsay
     ]
 
 - name: Install homebrew packages
   community.general.homebrew:
+    name: '{{ item }}'
+    state: present
+  loop:
+    # common
+    - 'git'
+    - 'zsh' 
+    - 'lazygit'
+    - 'mise'
+    - 'starship'
+    - 'zoxide'
+    - 'git-secrets'
+    - 'jq'
+    - 'nkf'
+    - 'yq'
+    - 'gh'
+    - 'wget'
+    - 'tree'
+    - 'pstree'
+    - 'xmlstarlet'
+    - 'openssl'
+    - 'vim'
+    - 'neovim'
+    - 'tmux'
+    - 'tmuxinator'
+    - 'ngrok'
+    - 'age'
+    # extend
+    - 'bat'
+    - 'eza'
+    - 'fd'
+    - 'coreutils'
+    - 'gnu-sed'
+    - 'gawk'
+    - 'findutils'
+    - 'xz'
+    - 'fzf'
+    - 'expect'
+    - 'gpg'
+    - 'gnupg'
+    - 'git-delta'
+    # etc
+    - 'opentofu'                  # IaC
+    # - 'readline'                # terminal
+    # - 'reattach-to-user-namespace'  # terminal
+    - 'awscli'                    # aws
+    - 'kubectl'                   # k8s
+    - 'kind'                      # k8s
+    - 'kubecolor'                 # k8s
+    - 'k9s'                       # k8s
+    - 'helm'                      # k8s
+    # - 'docker'                  # docker
+    # - 'docker-compose'          # docker
+    # - 'docker-completion'       # docker
+    - 'toilet'                    # ascii
+    # - 'uv'                      # python
+    - 'delve'                     # golang
+    # - 'alp'                     # for isucon
+    # - 'graphviz'                # for isucon
+    # - 'mysql-client'            # for isucon
+  register: install_results
+
+- name: Show failed packages
+  debug:
+    msg: "Failed to install: {{ item.item }}"
+  loop: "{{ install_results.results }}"
+  when: 
+    - install_results.results is defined
+    - item.failed | default(false)
+  run_once: true
+
+- name: Install homebrew cask applications
+  community.general.homebrew_cask:
     name: [
-      # common
-      'git', 'zsh', 'lazygit',
-      'mise', 'starship', 'zoxide',
-      # 'git-secrets',
-      'jq', 'nkf',
-      'yq', 'gh',
-      'wget',
-      'pipx',
-      'tree', 'pstree', 'xmlstarlet',
-      'openssl',
-      'vim', 'neovim',
-      'tmux', 'tmuxinator',
-      'ngrok',
-      # extend
-      'bat', 'eza', 'fd',
-      'coreutils', 'gnu-sed', 'gawk', 'findutils', 'xz',
-      'fzf', 'expect', 'gpg', 'gnupg',
-      'git-delta',
-      # etc
-      'opentofu',                                         # IaC
-      # 'readline', 'reattach-to-user-namespace',           # terminal
-      'awscli',                                           # aws
-      'kubectl', 'kind', 'kubecolor', 'k9s', 'helm',      # k8s
-      # 'docker', 'docker-compose', 'docker-completion',    # docker
-      'toilet',                                           # ascii
-      # 'uv',                                               # python
-      'delve',                                            # golang
-      # 'alp', 'graphviz', 'mysql-client',                  # for isucon
-      # tap
-      'pokemonsay',
-      # 'pulumi/tap/pulumi', 'pulumi/tap/esc',              # IaC
-      'keyclu'
+      'keyclu',
     ]
     state: present
-    update_homebrew: yes
