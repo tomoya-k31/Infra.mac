@@ -13,69 +13,83 @@
     name: '{{ item }}'
     state: present
   loop:
-    # common
-    - 'git'
-    - 'zsh' 
-    - 'lazygit'
-    - 'mise'
-    - 'starship'
-    - 'zoxide'
-    - 'git-secrets'
-    - 'jq'
-    - 'nkf'
-    - 'yq'
-    - 'gh'
-    - 'wget'
-    - 'tree'
-    - 'pstree'
-    - 'xmlstarlet'
-    - 'openssl'
-    - 'vim'
-    - 'neovim'
-    - 'tmux'
-    - 'tmuxinator'
-    - 'ngrok'
-    - 'age'
-    # extend
-    - 'bat'
-    - 'eza'
-    - 'fd'
-    - 'coreutils'
-    - 'gnu-sed'
-    - 'gawk'
-    - 'findutils'
-    - 'xz'
-    - 'fzf'
-    - 'expect'
-    - 'gpg'
-    - 'gnupg'
-    - 'git-delta'
-    # etc
-    - 'opentofu'                  # IaC
-    # - 'readline'                # terminal
-    # - 'reattach-to-user-namespace'  # terminal
-    - 'awscli'                    # aws
-    - 'kubectl'                   # k8s
-    - 'kind'                      # k8s
-    - 'kubecolor'                 # k8s
-    - 'k9s'                       # k8s
-    - 'helm'                      # k8s
-    # - 'docker'                  # docker
-    # - 'docker-compose'          # docker
-    # - 'docker-completion'       # docker
-    - 'toilet'                    # ascii
-    # - 'uv'                      # python
-    - 'delve'                     # golang
-    # - 'alp'                     # for isucon
-    # - 'graphviz'                # for isucon
-    # - 'mysql-client'            # for isucon
+    # === Shell & Terminal ===
+    - 'zsh'                       # Z shell
+    - 'tmux'                      # Terminal multiplexer
+    - 'tmuxinator'                # Tmux session manager
+    - 'starship'                  # Cross-shell prompt
+    - 'zoxide'                    # Smarter cd command
+    - 'fzf'                       # Fuzzy finder
+    # === Version Control ===
+    - 'git'                       # Distributed version control system
+    - 'lazygit'                   # Terminal UI for git
+    - 'gh'                        # GitHub CLI
+    - 'git-secrets'               # Prevents committing secrets
+    - 'git-delta'                 # Syntax-highlighting pager for git
+    # === Editors ===
+    - 'vim'                       # Vi improved text editor
+    - 'neovim'                    # Modern vim fork
+    # === Programming Language Tools ===
+    - 'mise'                      # Polyglot runtime manager (asdf alternative)
+    - 'delve'                     # Go debugger
+    # - 'uv'                      # Python package installer (fast pip alternative)
+    # === Text Processing & Data Tools ===
+    - 'jq'                        # JSON processor
+    - 'yq'                        # YAML/XML/TOML processor
+    - 'xmlstarlet'                # XML processor
+    - 'nkf'                       # Network Kanji Filter (encoding converter)
+    # === Enhanced Unix Tools ===
+    - 'bat'                       # cat with syntax highlighting
+    - 'eza'                       # Modern ls replacement
+    - 'fd'                        # Fast find alternative
+    - 'tree'                      # Directory tree viewer
+    - 'pstree'                    # Process tree viewer
+    # === GNU Tools ===
+    - 'coreutils'                 # GNU core utilities
+    - 'gnu-sed'                   # GNU sed
+    - 'gawk'                      # GNU awk
+    - 'findutils'                 # GNU find, xargs, locate
+    # === Network & Download ===
+    - 'wget'                      # Internet file retriever
+    - 'ngrok'                     # Secure tunnels to localhost
+    # === Security & Encryption ===
+    - 'openssl'                   # SSL/TLS toolkit
+    - 'gpg'                       # GNU Privacy Guard
+    - 'gnupg'                     # GNU Privacy Guard (extended)
+    - 'age'                       # Modern encryption tool
+    # === Compression & Archiving ===
+    - 'xz'                        # XZ compression
+    # === Automation & Scripting ===
+    - 'expect'                    # Tool for automating interactive applications
+    # === Infrastructure as Code ===
+    - 'opentofu'                  # Open source Terraform alternative
+    # === Cloud Platforms ===
+    - 'awscli'                    # AWS command line interface
+    # === Kubernetes Tools ===
+    - 'kubectl'                   # Kubernetes command line tool
+    - 'kind'                      # Kubernetes in Docker
+    - 'kubecolor'                 # Colorized kubectl output
+    - 'k9s'                       # Kubernetes TUI
+    - 'helm'                      # Kubernetes package manager
+    # === Container Tools ===
+    # - 'docker'                  # Container platform
+    # - 'docker-compose'          # Multi-container Docker applications
+    # - 'docker-completion'       # Docker shell completion
+    # === Other Tools ===
+    - 'toilet'                    # ASCII art text generator
+    # - 'readline'                # Terminal library
+    # - 'reattach-to-user-namespace'  # Tmux clipboard support
+    # === Performance Analysis (for ISUCON) ===
+    # - 'alp'                     # Access log profiler
+    # - 'graphviz'                # Graph visualization
+    # - 'mysql-client'            # MySQL client
   register: install_results
 
 - name: Show failed packages
   debug:
     msg: "Failed to install: {{ item.item }}"
   loop: "{{ install_results.results }}"
-  when: 
+  when:
     - install_results.results is defined
     - item.failed | default(false)
   run_once: true
