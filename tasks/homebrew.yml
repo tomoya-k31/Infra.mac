@@ -88,10 +88,10 @@
 - name: Show failed packages
   debug:
     msg: "Failed to install: {{ item.item }}"
-  loop: "{{ install_results.results }}"
-  when:
-    - install_results.results is defined
-    - item.failed | default(false)
+  loop: "{{ install_results.results | selectattr('failed', 'defined') | selectattr('failed', 'equalto', true) | list }}"
+  when: install_results.results is defined
+  loop_control:
+    label: "{{ item.item }}"
   run_once: true
 
 - name: Install homebrew cask applications
