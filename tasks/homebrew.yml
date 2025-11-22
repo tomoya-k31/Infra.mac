@@ -5,6 +5,7 @@
   community.general.homebrew_tap:
     name: [
       # 'possatti/possatti', # pokemonsay
+      'delphinus/sfmono-square',
     ]
 
 - name: Install homebrew packages
@@ -85,3 +86,12 @@
       'keyclu',
     ]
     state: present
+
+- name: Install SF Mono Square font
+  community.general.homebrew:
+    name: 'delphinus/sfmono-square/sfmono-square'
+    state: present
+
+- name: Show SF Mono Square font location
+  debug:
+    msg: "SF Mono Square font installed. Please open the following folder to install the font: {{ lookup('pipe', 'brew --prefix sfmono-square') }}/share/fonts"
