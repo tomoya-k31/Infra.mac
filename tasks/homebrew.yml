@@ -20,6 +20,7 @@
     - 'starship'                  # Cross-shell prompt
     - 'zoxide'                    # Smarter cd command
     - 'fzf'                       # Fuzzy finder
+    - 'gum'                       # Charming shell script toolkit
     # === Version Control ===
     - 'git'                       # Distributed version control system
     - 'lazygit'                   # Terminal UI for git
