@@ -15,17 +15,6 @@
     SDKMAN_DIR: "{{ lookup('env', 'XDG_DATA_HOME') }}/sdkman"
   shell: curl -s "https://get.sdkman.io" | bash -s -- -y
 
-- name: Install and Update Rye
-  block:
-    - name: Install Rye
-      environment:
-        # export RYE_HOME="$XDG_DATA_HOME/rye"
-        RYE_HOME: "{{ lookup('env', 'XDG_DATA_HOME') }}/rye"
-      shell: curl -sSf https://rye.astral.sh/get | RYE_VERSION="0.44.0" RYE_INSTALL_OPTION="--yes" bash
-
-    - name: Update Rye
-      shell: rye self update
-
 - name: Install pipx
   shell: pip install --user pipx
   when: pip_path is file
