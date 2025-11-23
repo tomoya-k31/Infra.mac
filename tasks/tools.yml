@@ -79,3 +79,18 @@
         hishtory config-set full-screen true
       environment:
         PATH: "{{ lookup('env', 'HOME') }}/.hishtory:{{ lookup('env', 'PATH') }}"
+
+- name: Install git-worktree-runner (gtr)
+  block:
+    - name: Clone git-worktree-runner repository
+      git:
+        repo: https://github.com/coderabbitai/git-worktree-runner.git
+        dest: "{{ lookup('env', 'XDG_DATA_HOME') }}/git-worktree-runner"
+        version: main
+        update: yes
+
+    - name: Create symlink for git-gtr
+      file:
+        src: "{{ lookup('env', 'XDG_DATA_HOME') }}/git-worktree-runner/bin/git-gtr"
+        dest: "{{ lookup('env', 'HOME') }}/.local/bin/git-gtr"
+        state: link
