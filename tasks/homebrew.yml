@@ -8,6 +8,17 @@
     ]
   when: false  # No taps needed currently
 
+# 修正コミット: https://github.com/tmux/tmux/commit/6106a0f2c454b9939cc3873a0ef443765aa3c21f
+# 現在の状態:
+# - 修正済み: tmux next-3.6（HEAD版）に含まれる
+# - 未リリース: Homebrew安定版（3.5a）にはまだ含まれていない
+# - 回避策: brew install --HEAD tmux で最新版を使用
+- name: Install tmux from HEAD
+  community.general.homebrew:
+    name: tmux
+    state: present
+    install_options: head
+
 - name: Install homebrew packages
   community.general.homebrew:
     name: '{{ item }}'
@@ -15,7 +26,7 @@
   loop:
     # === Shell & Terminal ===
     - 'zsh'                       # Z shell
-    - 'tmux'                      # Terminal multiplexer
+    # - 'tmux'                    # Terminal multiplexer (installed separately with --HEAD)
     - 'tmuxinator'                # Tmux session manager
     - 'starship'                  # Cross-shell prompt
     - 'zoxide'                    # Smarter cd command
