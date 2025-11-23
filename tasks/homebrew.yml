@@ -69,6 +69,7 @@
     - 'gpg'                       # GNU Privacy Guard
     - 'gnupg'                     # GNU Privacy Guard (extended)
     - 'age'                       # Modern encryption tool
+    - '1password-cli'             # 1Password command line tool
     # === Compression & Archiving ===
     - 'xz'                        # XZ compression
     # === Automation & Scripting ===
