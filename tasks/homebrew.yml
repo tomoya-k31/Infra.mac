@@ -63,7 +63,6 @@
     - 'findutils'                 # GNU find, xargs, locate
     # === Network & Download ===
     - 'wget'                      # Internet file retriever
-    - 'ngrok'                     # Secure tunnels to localhost
     # === Security & Encryption ===
     - 'openssl'                   # SSL/TLS toolkit
     - 'gpg'                       # GNU Privacy Guard
