@@ -89,6 +89,7 @@
     # - 'docker-completion'       # Docker shell completion
     # === Other Tools ===
     - 'toilet'                    # ASCII art text generator
+    - 't-rec'                     # Terminal recorder
     # - 'readline'                # Terminal library
     # - 'reattach-to-user-namespace'  # Tmux clipboard support
     # === Performance Analysis (for ISUCON) ===
