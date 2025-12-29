@@ -45,6 +45,8 @@
     - 'mise'                      # Polyglot runtime manager (asdf alternative)
     - 'delve'                     # Go debugger
     # - 'uv'                      # Python package installer (fast pip alternative)
+    # === API & Schema Tools ===
+    - 'specify'                   # OpenAPI specification CLI tool
     # === Text Processing & Data Tools ===
     - 'jq'                        # JSON processor
     - 'yq'                        # YAML/XML/TOML processor
