@@ -14,3 +14,4 @@ After adding the package:
 2. Create a new branch if on master
 3. Push the branch and create a PR
 4. Enable auto-merge on the PR
+5. Switch back to master branch and delete the created branch locally
