@@ -94,3 +94,12 @@
         src: "{{ lookup('env', 'XDG_DATA_HOME') }}/git-worktree-runner/bin/git-gtr"
         dest: "{{ lookup('env', 'HOME') }}/.local/bin/git-gtr"
         state: link
+
+- name: Install serena
+  block:
+    - name: Clone serena repository
+      git:
+        repo: https://github.com/oraios/serena.git
+        dest: "{{ lookup('env', 'HOME') }}/Workspace/app/serena"
+        version: main
+        update: yes
