@@ -114,5 +114,6 @@
     name: [
       'keyclu',
       'font-plemol-jp-nf',
+      'qlmarkdown',
     ]
     state: present
