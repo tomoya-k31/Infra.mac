@@ -59,6 +59,7 @@
     - 'tree'                      # Directory tree viewer
     - 'pstree'                    # Process tree viewer
     # === GNU Tools ===
+    - 'bash'                      # GNU Bash 4+ (macOS default is 3.2; required by SDKMAN)
     - 'coreutils'                 # GNU core utilities
     - 'gnu-sed'                   # GNU sed
     - 'gawk'                      # GNU awk

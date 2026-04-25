@@ -4,14 +4,14 @@
 - name: Install Krew
   environment:
     # export KREW_ROOT="$XDG_DATA_HOME/krew"
-    KREW_ROOT: "{{ lookup('env', 'XDG_DATA_HOME') }}/krew"
+    KREW_ROOT: "{{ xdg_data_home }}/krew"
   script: "{{ playbook_dir }}/scripts/install_krew.sh"
 
 - name: Install Krew plugins
   shell: "kubectl krew install {{ item }}"
   environment:
     # export PATH="${KREW_ROOT:-$XDG_DATA_HOME/krew}/bin:$PATH"
-    PATH: "{{ lookup('env', 'XDG_DATA_HOME') }}/krew/bin:{{ lookup('env', 'PATH') }}"
+    PATH: "{{ xdg_data_home }}/krew/bin:{{ lookup('env', 'PATH') }}"
   with_items:
     - stern
     - ctx
@@ -85,13 +85,13 @@
     - name: Clone git-worktree-runner repository
       git:
         repo: https://github.com/coderabbitai/git-worktree-runner.git
-        dest: "{{ lookup('env', 'XDG_DATA_HOME') }}/git-worktree-runner"
+        dest: "{{ xdg_data_home }}/git-worktree-runner"
         version: main
         update: yes
 
     - name: Create symlink for git-gtr
       file:
-        src: "{{ lookup('env', 'XDG_DATA_HOME') }}/git-worktree-runner/bin/git-gtr"
+        src: "{{ xdg_data_home }}/git-worktree-runner/bin/git-gtr"
         dest: "{{ lookup('env', 'HOME') }}/.local/bin/git-gtr"
         state: link
 

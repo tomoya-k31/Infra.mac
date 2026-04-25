@@ -5,19 +5,20 @@
   environment:
     # export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
     # export CARGO_HOME="$XDG_DATA_HOME/cargo"
-    RUSTUP_HOME: "{{ lookup('env', 'XDG_DATA_HOME') }}/rustup"
-    CARGO_HOME: "{{ lookup('env', 'XDG_DATA_HOME') }}/cargo"
+    RUSTUP_HOME: "{{ xdg_data_home }}/rustup"
+    CARGO_HOME: "{{ xdg_data_home }}/cargo"
   shell: curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
 
 - name: Install SDKMAN
   environment:
     # export SDKMAN_DIR="$XDG_DATA_HOME/sdkman"
-    SDKMAN_DIR: "{{ lookup('env', 'XDG_DATA_HOME') }}/sdkman"
-  shell: curl -s "https://get.sdkman.io" | bash -s -- -y
+    SDKMAN_DIR: "{{ xdg_data_home }}/sdkman"
+  # SDKMAN requires Bash 4+; macOS default is 3.2 so use Homebrew bash explicitly.
+  shell: curl -s "https://get.sdkman.io" | /opt/homebrew/bin/bash -s -- -y
 
 - name: Install pipx
   shell: pip install --user pipx
   when: pip_path is file
   tags: [langs, pip, python]
   vars:
-    pip_path: "{{ lookup('env', 'XDG_DATA_HOME') }}/mise/shims/pip"
+    pip_path: "{{ xdg_data_home }}/mise/shims/pip"

@@ -6,8 +6,8 @@
   pre_tasks:
     - name: Set XDG environment variables if not defined
       set_fact:
-        xdg_data_home: "{{ lookup('env', 'XDG_DATA_HOME') | default(lookup('env', 'HOME') + '/.local/share') }}"
-        xdg_config_home: "{{ lookup('env', 'XDG_CONFIG_HOME') | default(lookup('env', 'HOME') + '/.config') }}"
+        xdg_data_home: "{{ lookup('env', 'XDG_DATA_HOME') | default(lookup('env', 'HOME') + '/.local/share', true) }}"
+        xdg_config_home: "{{ lookup('env', 'XDG_CONFIG_HOME') | default(lookup('env', 'HOME') + '/.config', true) }}"
 
     - name: Show XDG environment variables
       debug:
