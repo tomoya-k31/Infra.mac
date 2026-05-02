@@ -27,7 +27,7 @@ The main playbook (`localhost-mac.yml`) orchestrates three task modules:
 
 1. **tasks/homebrew.yml** - Homebrew taps, formulae, and casks
 2. **tasks/langs.yml** - Language runtime installations (Rust, SDKMAN, pipx)
-3. **tasks/tools.yml** - Additional tools (Krew, SOPS, hishtory, git-worktree-runner, serena)
+3. **tasks/tools.yml** - Additional tools (Krew, SOPS, hishtory, git-worktree-runner)
 
 Helper scripts live in `scripts/`.
 
