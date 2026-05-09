@@ -34,6 +34,7 @@
     - 'mise'                      # Polyglot runtime manager (asdf alternative)
     - 'delve'                     # Go debugger
     - 'shfmt'                     # Shell script formatter
+    - 'shellcheck'                # Shell script static analyzer
     # - 'uv'                      # Python package installer (fast pip alternative)
     # === AI & LLM Tools ===
     - 'rtk'                       # CLI proxy to minimize LLM token consumption
