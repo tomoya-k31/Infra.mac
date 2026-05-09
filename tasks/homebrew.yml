@@ -33,6 +33,7 @@
     # === Programming Language Tools ===
     - 'mise'                      # Polyglot runtime manager (asdf alternative)
     - 'delve'                     # Go debugger
+    - 'shfmt'                     # Shell script formatter
     # - 'uv'                      # Python package installer (fast pip alternative)
     # === AI & LLM Tools ===
     - 'rtk'                       # CLI proxy to minimize LLM token consumption
