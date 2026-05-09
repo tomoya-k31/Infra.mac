@@ -83,6 +83,8 @@
     # - 'docker'                  # Container platform
     # - 'docker-compose'          # Multi-container Docker applications
     # - 'docker-completion'       # Docker shell completion
+    # === Media Processing ===
+    - 'ffmpeg'                    # Audio/video processing toolkit
     # === Other Tools ===
     - 'toilet'                    # ASCII art text generator
     - 't-rec'                     # Terminal recorder
