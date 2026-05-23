@@ -45,6 +45,7 @@
     - 'yq'                        # YAML/XML/TOML processor
     - 'xmlstarlet'                # XML processor
     - 'nkf'                       # Network Kanji Filter (encoding converter)
+    - 'duckdb'                    # In-process analytical SQL database
     # === Enhanced Unix Tools ===
     - 'bat'                       # cat with syntax highlighting
     - 'eza'                       # Modern ls replacement
