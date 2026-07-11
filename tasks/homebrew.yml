@@ -61,6 +61,7 @@
     - 'findutils'                 # GNU find, xargs, locate
     # === Network & Download ===
     - 'wget'                      # Internet file retriever
+    - 'lychee'                    # Fast, async link checker
     # === Security & Encryption ===
     - 'openssl'                   # SSL/TLS toolkit
     - 'gpg'                       # GNU Privacy Guard
