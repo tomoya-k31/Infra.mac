@@ -1,12 +1,6 @@
 ---
 # Homebrew関連のタスク
 
-- name: Tap a Homebrew repository
-  community.general.homebrew_tap:
-    name: [
-      'samueltuyizere/tap',
-    ]
-
 - name: Install homebrew packages
   community.general.homebrew:
     name: '{{ item }}'
@@ -37,8 +31,7 @@
     # - 'uv'                      # Python package installer (fast pip alternative)
     # === AI & LLM Tools ===
     - 'rtk'                       # CLI proxy to minimize LLM token consumption
-    # === AI Coding Tools ===
-    - 'oc-go-cc'                  # Code completion cache warmer for Claude Code
+    - 'mcp-toolbox'               # MCP server for databases (Google genai-toolbox)
     # === API & Schema Tools ===
     - 'specify'                   # OpenAPI specification CLI tool
     # === Text Processing & Data Tools ===
