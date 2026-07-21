@@ -59,22 +59,59 @@
         mode: '0755'
         remote_src: yes
 
+# NOTE: 公式の `curl https://hishtory.dev/install.py | python3 -` は
+# install.py 内部で api.hishtory.dev から配布 URL を取得するため、
+# 同バックエンドの障害（例: 502 Bad Gateway）でインストールが失敗する。
+# それを避けるため、SOPS と同じく GitHub Releases から直接バイナリを取得し、
+# バイナリ自身の `install --offline` でセルフインストールする。
 - name: Install and configure hishtory
   block:
-    - name: Install hishtory
-      shell: curl https://hishtory.dev/install.py | python3 - --offline
+    - name: Check if hishtory is already installed
+      stat:
+        path: "{{ lookup('env', 'HOME') }}/.hishtory/config.zsh"
+      register: hishtory_config
+
+    - name: Get OS and architecture for hishtory
+      shell: |
+        OS="$(uname | tr '[:upper:]' '[:lower:]')"
+        ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64$/arm64/' -e 's/armv7l$/arm/')"
+        echo "${OS},${ARCH}"
+      register: hishtory_os_arch
+      changed_when: false
+      check_mode: no
+      when: not hishtory_config.stat.exists
+
+    - name: Set hishtory OS, architecture and version variables
+      set_fact:
+        hishtory_os: "{{ hishtory_os_arch.stdout.split(',')[0] }}"
+        hishtory_arch: "{{ hishtory_os_arch.stdout.split(',')[1] }}"
+        hishtory_version: "v0.335"
+      when: not hishtory_config.stat.exists
+
+    - name: Download hishtory binary
+      get_url:
+        url: "https://github.com/ddworken/hishtory/releases/download/{{ hishtory_version }}/hishtory-{{ hishtory_os }}-{{ hishtory_arch }}"
+        dest: "/tmp/hishtory-client-{{ hishtory_version }}"
+        mode: '0755'
+      when: not hishtory_config.stat.exists
+
+    - name: Install hishtory (offline, self-install)
+      shell: "/tmp/hishtory-client-{{ hishtory_version }} install --offline"
       args:
         creates: "{{ lookup('env', 'HOME') }}/.hishtory/config.zsh"
+      when: not hishtory_config.stat.exists
 
-    - name: Source hishtory config
-      shell: source {{ lookup('env', 'HOME') }}/.hishtory/config.zsh
-      args:
-        executable: /bin/zsh
+    - name: Remove temporary hishtory binary
+      file:
+        path: "/tmp/hishtory-client-{{ hishtory_version }}"
+        state: absent
+      when: not hishtory_config.stat.exists
 
+    # `install --offline` の時点で syncing は無効化済みのため
+    # `hishtory syncing disable`（実行するとエラーになる）は不要。
     - name: Configure hishtory settings
       shell: |
         hishtory config-set filter-duplicate-commands true
-        hishtory syncing disable
         hishtory config-set timestamp-format '2006/1/2 15:04'
         hishtory config-set full-screen true
       environment:
