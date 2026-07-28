@@ -39,6 +39,7 @@
     - 'yq'                        # YAML/XML/TOML processor
     - 'xmlstarlet'                # XML processor
     - 'nkf'                       # Network Kanji Filter (encoding converter)
+    - 'rumdl'                     # Markdown linter and formatter (Rust)
     - 'duckdb'                    # In-process analytical SQL database
     # === Enhanced Unix Tools ===
     - 'bat'                       # cat with syntax highlighting
