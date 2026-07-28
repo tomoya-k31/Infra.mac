@@ -1,0 +1,33 @@
+---
+# macOS のシステム設定（defaults）関連のタスク
+
+- name: Configure screenshot settings
+  vars:
+    screenshot_dir: "{{ lookup('env', 'HOME') }}/Pictures/Screenshots"
+  block:
+    - name: Create screenshot directory
+      file:
+        path: "{{ screenshot_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Set screenshot save location
+      community.general.osx_defaults:
+        domain: com.apple.screencapture
+        key: location
+        type: string
+        value: "{{ screenshot_dir }}"
+        state: present
+      register: screencapture_location
+
+    # defaults の変更は SystemUIServer の再起動で反映される。
+    # 変更がないときに再起動してもメニューバーが一瞬点滅するだけで無駄なので、
+    # 実際に変更されたときのみ実行する。
+    - name: Restart SystemUIServer to apply screenshot settings
+      command: killall SystemUIServer
+      register: killall_systemuiserver
+      changed_when: killall_systemuiserver.rc == 0
+      # SystemUIServer が起動していない場合は rc=1 になるが、
+      # 再起動が不要なだけなので失敗扱いにしない。
+      failed_when: killall_systemuiserver.rc not in [0, 1]
+      when: screencapture_location is changed

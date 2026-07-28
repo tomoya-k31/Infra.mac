@@ -22,3 +22,5 @@
       import_tasks: tasks/langs.yml
     - name: Include Tools tasks
       import_tasks: tasks/tools.yml
+    - name: Include macOS defaults tasks
+      import_tasks: tasks/macos_defaults.yml
