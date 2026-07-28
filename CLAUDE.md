@@ -23,11 +23,12 @@ ansible-playbook localhost-mac.yml
 
 ## Architecture
 
-The main playbook (`localhost-mac.yml`) orchestrates three task modules:
+The main playbook (`localhost-mac.yml`) orchestrates four task modules:
 
 1. **tasks/homebrew.yml** - Homebrew taps, formulae, and casks
 2. **tasks/langs.yml** - Language runtime installations (Rust, SDKMAN, pipx)
 3. **tasks/tools.yml** - Additional tools (Krew, SOPS, hishtory, git-worktree-runner)
+4. **tasks/macos_defaults.yml** - macOS system preferences via `defaults` (screenshot location)
 
 Helper scripts live in `scripts/`.
 
