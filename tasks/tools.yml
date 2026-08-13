@@ -131,3 +131,51 @@
         src: "{{ xdg_data_home }}/git-worktree-runner/bin/git-gtr"
         dest: "{{ lookup('env', 'HOME') }}/.local/bin/git-gtr"
         state: link
+
+# Alacritty は子プロセスへ渡す TERM を決める際、terminfo データベースに `alacritty`
+# エントリが引けるかを確認し、無ければ `xterm-256color` にフォールバックする。
+# macOS 標準の ncurses (/usr/share/terminfo) は alacritty エントリを持たず、
+# Homebrew も terminfo を配置しないため、放置すると TERM=xterm-256color のままになり
+# undercurl (Smulx) と synchronized output (Sync) が使えない。
+# コンパイル済みエントリは app バンドルに同梱されているものの ncurses の検索パス外なので、
+# ncurses が必ず探索する ~/.terminfo/ へコピーする。
+- name: Install Alacritty terminfo
+  vars:
+    # ncurses は端末名の頭文字ごとのサブディレクトリにエントリを格納する。macOS は
+    # 大文字小文字を区別しない FS が既定で 'A' と 'a' のディレクトリを共存させられないため、
+    # 文字そのものではなく hex を使う（`61` = 'a'）。`alacritty` が 'a' 始まりである限り
+    # この値は変わらないが、命名規則やバンドル構造の変更に追従できるよう、
+    # コピー先のディレクトリ名はコピー元から導出してリテラルを 1 箇所に閉じ込める。
+    alacritty_app_path: /Applications/Alacritty.app
+    alacritty_terminfo_src: "{{ alacritty_app_path }}/Contents/Resources/61"
+    user_terminfo_dir: "{{ lookup('env', 'HOME') }}/.terminfo"
+  block:
+    - name: Check if Alacritty.app is installed
+      stat:
+        path: "{{ alacritty_app_path }}"
+      register: alacritty_app
+
+    - name: Check if Alacritty.app ships compiled terminfo entries
+      stat:
+        path: "{{ alacritty_terminfo_src }}"
+      register: alacritty_terminfo_bundled
+
+    # Alacritty.app があるのに terminfo が見つからないのはバンドル構造が変わった可能性が高い。
+    # 黙って飛ばすと TERM が xterm-256color に戻ったことに気付けないため警告する。
+    - name: Warn if the bundled terminfo path has moved
+      debug:
+        msg: >-
+          Alacritty.app is installed but {{ alacritty_terminfo_src }} was not found.
+          The app bundle layout may have changed; update alacritty_terminfo_src.
+      when: alacritty_app.stat.exists and not alacritty_terminfo_bundled.stat.exists
+
+    # `mode` は指定しない。指定するとコピー先ディレクトリにも適用されて 0644
+    # （実行ビットなし＝辿れない）になり、terminfo が引けないうえ毎回 changed になる。
+    # ファイルはコピー元の 0644 のまま複製される。
+    - name: Copy Alacritty terminfo entries into the user terminfo database
+      copy:
+        src: "{{ alacritty_terminfo_src }}/"
+        dest: "{{ user_terminfo_dir }}/{{ alacritty_terminfo_src | basename }}/"
+        directory_mode: '0755'
+        remote_src: yes
+      when: alacritty_terminfo_bundled.stat.exists
