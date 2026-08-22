@@ -85,6 +85,7 @@
     # === Other Tools ===
     - 'toilet'                    # ASCII art text generator
     - 't-rec'                     # Terminal recorder
+    - 'terminal-notifier'         # Send macOS notifications from the command line
     # - 'readline'                # Terminal library
     # - 'reattach-to-user-namespace'  # Tmux clipboard support
     # === Performance Analysis (for ISUCON) ===
