@@ -109,5 +109,6 @@
       'keyclu',
       'font-plemol-jp-nf',
       'qlmarkdown',
+      'swiftbar',
     ]
     state: present
