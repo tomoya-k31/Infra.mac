@@ -1,13 +1,26 @@
 ---
 # 言語インストール関連のタスク
 
+# インストーラは冪等ではなく、rustup 導入済みでも毎回 rustup-init を取得し直し、
+# stable チャンネルが動いていればツールチェーンを丸ごと再展開する。
+# 既定 profile の rust-docs は 6.5 万ファイル超あり、macOS では 1 ファイルごとの
+# xattr 付与と Gatekeeper スキャンが入るため展開だけで 10 分以上かかる。
+# 導入済みなら丸ごとスキップし、更新は `rustup update` を手動で叩く運用にする。
 - name: Install Rust by rustup
-  environment:
-    # export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
-    # export CARGO_HOME="$XDG_DATA_HOME/cargo"
-    RUSTUP_HOME: "{{ xdg_data_home }}/rustup"
-    CARGO_HOME: "{{ xdg_data_home }}/cargo"
-  shell: curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
+  block:
+    - name: Check if rustup is already installed
+      stat:
+        path: "{{ xdg_data_home }}/cargo/bin/rustup"
+      register: rustup_bin
+
+    - name: Install Rust by rustup
+      environment:
+        # export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
+        # export CARGO_HOME="$XDG_DATA_HOME/cargo"
+        RUSTUP_HOME: "{{ xdg_data_home }}/rustup"
+        CARGO_HOME: "{{ xdg_data_home }}/cargo"
+      shell: curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
+      when: not rustup_bin.stat.exists
 
 - name: Install SDKMAN
   environment:
