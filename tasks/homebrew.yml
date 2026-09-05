@@ -30,7 +30,6 @@
     - 'shellcheck'                # Shell script static analyzer
     # - 'uv'                      # Python package installer (fast pip alternative)
     # === AI & LLM Tools ===
-    - 'rtk'                       # CLI proxy to minimize LLM token consumption
     - 'mcp-toolbox'               # MCP server for databases (Google genai-toolbox)
     # === API & Schema Tools ===
     - 'specify'                   # OpenAPI specification CLI tool
