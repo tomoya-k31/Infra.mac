@@ -40,6 +40,7 @@
     - 'nkf'                       # Network Kanji Filter (encoding converter)
     - 'rumdl'                     # Markdown linter and formatter (Rust)
     - 'duckdb'                    # In-process analytical SQL database
+    - 'postgresql@18'             # PostgreSQL server and client (psql)
     # === Enhanced Unix Tools ===
     - 'bat'                       # cat with syntax highlighting
     - 'eza'                       # Modern ls replacement
@@ -69,6 +70,7 @@
     - 'opentofu'                  # Open source Terraform alternative
     # === Cloud Platforms ===
     - 'awscli'                    # AWS command line interface
+    - 'cloud-sql-proxy'           # Google Cloud SQL Auth Proxy
     # === Kubernetes Tools ===
     - 'kubectl'                   # Kubernetes command line tool
     - 'kind'                      # Kubernetes in Docker
