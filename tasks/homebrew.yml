@@ -109,5 +109,6 @@
       'font-plemol-jp-nf',
       'qlmarkdown',
       'swiftbar',
+      'copilot-cli',
     ]
     state: present
