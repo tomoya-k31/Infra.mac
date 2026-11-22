@@ -27,6 +27,7 @@
 | 中 | SOPS と hishtory にチェックサムがない。git-worktree-runner は `main` を追う | `tasks/tools.yml` |
 | 中 | SDKMAN の取得失敗を検出できず、毎回実行される | `tasks/langs.yml` |
 | 中 | `Show failed packages` は動かない（先に play が失敗する） | `tasks/homebrew.yml` |
+| 低 | 新しい Mac の dry-run は、git-gtr のリンク作成で失敗する（clone が行われないため） | `tasks/tools.yml` |
 | 低 | hishtory の設定は最後の 1 つしか失敗を検出しない | `tasks/tools.yml` |
 | 低 | krew、pipx などが毎回 changed になる。`pip install` と `with_items` が残る | `tasks/tools.yml`、`tasks/langs.yml` |
 
@@ -98,8 +99,8 @@ tasks/                       # Mac 用。ロールにしない
 | k3s-ansible への置き換え | 稼働中の SQLite 構成への適用が README に書かれていない。インベントリの形だけ参考にする |
 | Molecule、ステージング環境、AAP | 1 人で運用する規模に対して重い。lint、dry-run、実機確認で代える |
 | Mac 用タスクのロール化 | 再利用する相手がいない |
-| Lola | ai-forge を入れられるが、`CLAUDE.md` に常時読み込まれる文を書き、モジュールごとにリポジトリ全体を複製する。0.7.1 では、コミットを固定した `.lola-req` での同期が失敗した |
-| ai-forge の残り | コレクション、AWS、ネットワーク機器の開発用。`ansible-zen` は任意のため見送り |
+| ai-forge の残りのモジュール | コレクションのリリース、AWS、ネットワーク機器の開発用 |
+| `.lola-req` での同期 | Lola 0.7.1 ではカタログ名でのコミット固定に失敗し、固定しないと `main` を追う。URL と `#subdirectory` での固定も、同じリポジトリの複数モジュールでは失敗した |
 
 ## AI による保守
 

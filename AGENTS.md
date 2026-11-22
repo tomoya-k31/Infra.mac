@@ -46,7 +46,7 @@ ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file script
 env -u ANSIBLE_HOME ansible-lint
 ```
 
-Validation is `ansible-lint` (local and CI) and `--check --diff`; there are no tests. On a fresh k3s server, the `ignored` tasks in the dry-run are expected.
+Validation is `ansible-lint` (local and CI) and `--check --diff`; there are no tests. In a dry-run, `ignored` tasks are expected on a fresh k3s server and for the SOPS copy when its binary is not in `/tmp`.
 
 The k3s server is live: dry-run first, and get the user's approval before executing or rebooting.
 
@@ -60,16 +60,18 @@ Then stage the changes, have them reviewed for correctness and for security, and
 
 Use the `ansible-verify` skill to validate a change and the `update-versions` skill to bump pinned versions.
 
-After adding a workflow or changing any `uses:`, run `gh actions-lock --no-narrow` and commit `.github/workflows/actions.lock` with it. Without `--no-narrow` it rewrites the SHA pins to tags. Never edit the lockfile by hand. CI runs `gh actions-lock --verify`.
+After adding a workflow or changing any `uses:`, run `gh actions-lock --no-narrow` and commit `.github/workflows/actions.lock` with it. Without `--no-narrow` it rewrites the SHA pins to tags. Never edit the lockfile by hand. CI runs `gh actions-lock --verify`. If a Dependabot PR fails that check, run the same command on its branch.
 
 ## AI Content
 
 Rules here override the imported content below. Do not edit imported files; change the pinned commit in `scripts/update-ai-content.sh`, run it, and review `git diff --cached` in full, including new files.
 
-- ansible-community/ai-forge: `.claude/skills/{write-content,ansible-markdown-docs}`, `.claude/commands/{ansible-cop-review,ansible-scaffold-role}.md`
+- ansible-community/ai-forge, installed with Lola (`pip install lola-ai==0.7.1`): the `write-*`, `ansible-zen`, and `ansible-markdown-docs` skills, and the `ansible-*` commands
 - github/awesome-copilot: `.github/instructions/ansible.instructions.md`
 - Claude Code and Copilot CLI both read `.claude/skills` and `.claude/commands`, so do not copy skills elsewhere
-- Skills named in the imported content but absent here (Molecule, module development, release) are out of scope
+- `write-module`, `write-module-tests`, `write-content-tests`, `ansible-scaffold-collection`, and `ansible-collection-inclusion-review` come with the modules; do not invoke them unless the user asks: this repository has no custom modules, collections, or Molecule
+- Ignore skills named in the imported content but absent here, such as `run-tests` and `changelog-fragment`
+- Scaffolding must not overwrite `AGENTS.md` or `CLAUDE.md`, and new workflows must pin actions by SHA
 
 Where this repository differs from the imported content:
 
@@ -80,14 +82,15 @@ Where this repository differs from the imported content:
 - Keep existing key order and quoting; do not reformat code that `ansible-lint` accepts
 - Do not apply automatic fixes from a review to `tasks/k3s/`, `k3s-mac-mini.yml`, or `inventory.yml` without the user's approval
 - For review rules, use `.claude/skills/write-content/reference.md` instead of fetching them from the web
-- Install tools with Homebrew, mise, or `uv`, not `pip install`
-- `ansible-markdown-docs`: use `curl -sL --proto-redir =https` with the URL quoted, because docs.ansible.com redirects `/ansible/latest/`; check that the final URL is still on docs.ansible.com
+- Install tools with Homebrew, mise, or `uv`, not `pip install` (Lola is the exception)
+- `ansible-markdown-docs`: use `curl -sL --proto-redir '=https'` with the URL quoted, because docs.ansible.com redirects `/ansible/latest/`; check that the final URL is still on docs.ansible.com
 
 ## Prerequisites
 
 - Homebrew must be installed first
 - Ansible installed via `brew install ansible`
 - `ansible-lint` installed via `brew install ansible-lint`
+- For updating imported AI content: `pip install lola-ai==0.7.1`
 - For workflow changes: `gh extension install github/gh-actions-lock --pin v0.5.1` (same version as `verify-lockfile.yml`)
 - k3s server: when SSH, sudo, or 1Password access fails, or the server is rebuilt, follow `docs/k3s-mac-mini-setup.md`
 

@@ -67,10 +67,12 @@ $ KUBECONFIG=~/.kube/config-home kubectl get nodes
 ```
 .
 ├── .ansible-lint           # ansible-lint settings
-├── .github/workflows/      # CI (ansible-lint, lockfile verification) and actions.lock
-├── AGENTS.md               # Rules for AI agents (CLAUDE.md imports it)
 ├── .claude/                # Skills, commands, and permissions for AI agents
-├── .github/instructions/   # Ansible instructions for Copilot
+├── .github/
+│   ├── dependabot.yml      # Weekly GitHub Actions updates
+│   ├── instructions/       # Ansible instructions for Copilot
+│   └── workflows/          # CI (ansible-lint, lockfile verification) and actions.lock
+├── AGENTS.md               # Rules for AI agents (CLAUDE.md imports it)
 ├── .gitignore
 ├── localhost-mac.yml       # Main Ansible playbook (local Mac)
 ├── k3s-mac-mini.yml        # Ansible playbook for the k3s server
@@ -83,7 +85,7 @@ $ KUBECONFIG=~/.kube/config-home kubectl get nodes
 ├── scripts/
 │   ├── become-password.sh  # Reads the k3s server's sudo password from 1Password
 │   ├── install_krew.sh     # Script to install Krew (kubectl plugin manager)
-│   └── update-ai-content.sh  # Imports third-party AI content at pinned commits
+│   └── update-ai-content.sh  # Imports third-party AI content at pinned commits (needs Lola)
 ├── third_party/            # Licenses of the imported AI content
 └── tasks/
     ├── homebrew.yml        # Tasks for Homebrew (tap, install packages)

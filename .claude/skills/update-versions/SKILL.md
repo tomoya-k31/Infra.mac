@@ -13,6 +13,7 @@ Change one component per branch. Read its release notes first and report breakin
 | k9s | `k9s_version` in `k3s-mac-mini.yml` | `k9s_deb_sha256` |
 | SOPS, hishtory | `*_version` in `tasks/tools.yml` | none. hishtory is skipped on Macs that already have it, so tell the user |
 | Ansible collections | `requirements.yml` | match the versions bundled with Homebrew's ansible |
+| Lola | `lola_version` and the header of `scripts/update-ai-content.sh` | the versions in `AGENTS.md`; check that its hook and install behavior has not changed |
 | gh-actions-lock | `verify-lockfile.yml` | the version in `AGENTS.md` |
 | GitHub Actions | `uses:` in `.github/workflows/` | `gh actions-lock --no-narrow` |
 

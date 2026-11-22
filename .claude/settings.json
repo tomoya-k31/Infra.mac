@@ -3,9 +3,12 @@
   "permissions": {
     "ask": [
       "Bash(ansible *)",
+      "Bash(ansible-console *)",
       "Bash(ansible-playbook *k3s*)",
       "Bash(ansible-playbook *inventory*)",
       "Bash(ansible-playbook *become*)",
+      "Bash(op *)",
+      "Bash(*become-password.sh*)",
       "Bash(ssh *)",
       "Bash(scp *)",
       "Bash(sftp *)",
