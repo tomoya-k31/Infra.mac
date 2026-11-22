@@ -78,6 +78,10 @@
         - apiGroups: [""]
           resources: [nodes, persistentvolumes]
           verbs: [get, list, watch]
+        # k9s の CPU/MEM 表示と、起動時の待機に使う。
+        - apiGroups: [metrics.k8s.io]
+          resources: [nodes, pods]
+          verbs: [get, list]
       ---
       apiVersion: rbac.authorization.k8s.io/v1
       kind: ClusterRoleBinding
@@ -174,6 +178,9 @@
       UnsetEnvironment=EDITOR VISUAL KUBE_EDITOR K9S_EDITOR
       # API の準備ができるまで、理由を画面に出して待つ。
       ExecStartPre=/bin/sh -c 'until err=$$(kubectl get --raw=/readyz 2>&1 >/dev/null); do clear; echo "Waiting for k3s: $$err"; sleep 5; done'
+      # k9s は起動時に metrics API がないと、CPU/MEM とグラフを出さないままになる。
+      # metrics-server が壊れていても表示できるよう、OS の起動から 5 分を過ぎたら 30 秒で諦める。
+      ExecStartPre=/bin/sh -c 'up() { cut -d. -f1 /proc/uptime; }; t=$$(up); until err=$$(kubectl --request-timeout=5s get --raw=/apis/metrics.k8s.io/v1beta1/nodes 2>&1 >/dev/null); do n=$$(up); [ $$n -ge 300 ] && [ $$((n-t)) -ge 30 ] && break; clear; echo "Waiting for metrics-server: $$err"; sleep 5; done'
       TimeoutStartSec=infinity
       ExecStart=/usr/bin/k9s --readonly -c pulse
       StandardInput=tty
