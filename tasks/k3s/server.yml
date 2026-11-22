@@ -1,0 +1,68 @@
+---
+# k3s サーバー本体のタスク
+
+# IP が DHCP で変わると証明書や kubeconfig の宛先と食い違うため、先に止める。
+- name: Verify the node uses the expected IP address
+  assert:
+    that: ansible_facts['default_ipv4']['address'] == ansible_host
+    fail_msg: "Default IPv4 is {{ ansible_facts['default_ipv4']['address'] }}, expected {{ ansible_host }}"
+
+- name: Check ufw status
+  become: true
+  command: ufw status
+  register: ufw_status
+  changed_when: false
+  # rc=2 は ufw が未導入の場合。
+  failed_when: ufw_status.rc not in [0, 2]
+  check_mode: false
+
+- name: Verify ufw is inactive
+  assert:
+    that: "'Status: active' not in (ufw_status.stdout | default(''))"
+    fail_msg: "ufw is active. Firewall rules are not managed here; disable ufw (see https://docs.k3s.io/installation/requirements)."
+
+# バイナリの版ではなく稼働中の kubelet の版を見る。インストーラーはサービスの再作成より先に
+# バイナリを置き換えるため、途中で失敗したときに導入済みと誤認しないようにする。
+- name: Check the running k3s version
+  become: true
+  command:
+    argv: [k3s, kubectl, get, nodes, -o, 'jsonpath={.items[0].status.nodeInfo.kubeletVersion}']
+  register: k3s_running
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# get.k3s.io は常に最新のスクリプトを返すため、タグとハッシュで固定する。
+# バイナリのハッシュはスクリプト側で検証される。
+- name: Download the k3s installer
+  become: true
+  get_url:
+    url: "https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version | urlencode }}/install.sh"
+    dest: /usr/local/src/k3s-install.sh
+    checksum: "sha256:{{ k3s_installer_sha256 }}"
+    mode: '0755'
+
+- name: Install k3s
+  become: true
+  command: /usr/local/src/k3s-install.sh
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+  when: k3s_running.stdout | default('') != k3s_version
+
+# 再起動直後は以前の Ready が残るため、kubelet の版も合わせて確認する。
+- name: Wait for the node to be Ready
+  become: true
+  command:
+    argv:
+      - k3s
+      - kubectl
+      - get
+      - nodes
+      - -o
+      - 'jsonpath={.items[0].status.nodeInfo.kubeletVersion} {.items[0].status.conditions[?(@.type=="Ready")].status}'
+  register: k3s_ready
+  until: k3s_ready.rc == 0 and k3s_ready.stdout == k3s_version ~ ' True'
+  retries: 36
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode

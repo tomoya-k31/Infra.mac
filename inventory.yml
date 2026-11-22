@@ -1,0 +1,9 @@
+# localhost-mac.yml は暗黙の localhost で動くため、このインベントリは不要。
+k3s:
+  hosts:
+    mac-mini-2018:
+      ansible_host: 192.168.11.200
+      ansible_user: tomoya-k31
+      # Ubuntu 26.04 既定の sudo-rs はプロンプトが異なり、ansible-core 2.20.0 では
+      # become がタイムアウトしうるため、従来の sudo を使う。
+      ansible_become_exe: sudo.ws

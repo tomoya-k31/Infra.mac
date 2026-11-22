@@ -1,0 +1,18 @@
+---
+# 再起動は行わない。単一ノードのためクラスタ全体が止まるので、手動で実行する。
+
+- name: Upgrade apt packages
+  become: true
+  apt:
+    update_cache: true
+    upgrade: safe
+
+- name: Check if a reboot is required
+  stat:
+    path: /var/run/reboot-required
+  register: reboot_required
+
+- name: Warn if a reboot is required
+  debug:
+    msg: "Reboot required: ansible k3s -i inventory.yml -b --become-password-file scripts/become-password.sh -m reboot"
+  when: reboot_required.stat.exists
