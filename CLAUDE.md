@@ -31,18 +31,30 @@ ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file script
 ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file scripts/become-password.sh
 ```
 
-`--check --diff` is the only validation (no lint, tests, or CI). On a fresh k3s server, its `ignored` tasks are expected.
+```shell
+# Lint (installs the collections in requirements.yml into .ansible/).
+# With ANSIBLE_HOME set, they would go to the user collection path and shadow the ones ansible-playbook uses.
+env -u ANSIBLE_HOME ansible-lint
+```
+
+Validation is `ansible-lint` (local and CI) and `--check --diff`; there are no tests. On a fresh k3s server, the `ignored` tasks in the dry-run are expected.
 
 The k3s server is live: dry-run first, and get the user's approval before executing or rebooting.
 
 ## Development Rules
 
-Before every commit, stage the changes, run both `/code-review` and `/security-review`, and resolve their findings or get the user's decision on them. `/security-review` receives only committed changes, so point its review at `git diff --cached`.
+Before every commit, run `env -u ANSIBLE_HOME ansible-lint` and fix every finding. When the fix would change behavior, suppress it with an inline `# noqa: <rule>`. The only global exception is `yaml[line-length]` in `.ansible-lint`, because a `noqa` inside the embedded systemd unit would be written to the server. When local and CI results differ, the version pinned in `ansible-lint.yml` decides.
+
+Then stage the changes, run both `/code-review` and `/security-review`, and resolve their findings or get the user's decision on them. `/security-review` receives only committed changes, so point its review at `git diff --cached`.
+
+After adding a workflow or changing any `uses:`, run `gh actions-lock --no-narrow` and commit `.github/workflows/actions.lock` with it. Without `--no-narrow` it rewrites the SHA pins to tags. Never edit the lockfile by hand. CI runs `gh actions-lock --verify`.
 
 ## Prerequisites
 
 - Homebrew must be installed first
 - Ansible installed via `brew install ansible`
+- `ansible-lint` installed via `brew install ansible-lint`
+- For workflow changes: `gh extension install github/gh-actions-lock --pin v0.5.1` (same version as `verify-lockfile.yml`)
 - k3s server: when SSH, sudo, or 1Password access fails, or the server is rebuilt, follow `docs/k3s-mac-mini-setup.md`
 
 ## Architecture

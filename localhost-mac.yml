@@ -5,22 +5,22 @@
 
   pre_tasks:
     - name: Set XDG environment variables if not defined
-      set_fact:
+      ansible.builtin.set_fact:
         xdg_data_home: "{{ lookup('env', 'XDG_DATA_HOME') | default(lookup('env', 'HOME') + '/.local/share', true) }}"
         xdg_config_home: "{{ lookup('env', 'XDG_CONFIG_HOME') | default(lookup('env', 'HOME') + '/.config', true) }}"
 
     - name: Show XDG environment variables
-      debug:
+      ansible.builtin.debug:
         msg:
           - "XDG_DATA_HOME: {{ xdg_data_home }}"
           - "XDG_CONFIG_HOME: {{ xdg_config_home }}"
 
   tasks:
     - name: Include Homebrew tasks
-      import_tasks: tasks/homebrew.yml
+      ansible.builtin.import_tasks: tasks/homebrew.yml
     - name: Include Language installation tasks
-      import_tasks: tasks/langs.yml
+      ansible.builtin.import_tasks: tasks/langs.yml
     - name: Include Tools tasks
-      import_tasks: tasks/tools.yml
+      ansible.builtin.import_tasks: tasks/tools.yml
     - name: Include macOS defaults tasks
-      import_tasks: tasks/macos_defaults.yml
+      ansible.builtin.import_tasks: tasks/macos_defaults.yml

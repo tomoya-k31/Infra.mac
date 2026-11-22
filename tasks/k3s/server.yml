@@ -3,13 +3,13 @@
 
 # IP が DHCP で変わると証明書や kubeconfig の宛先と食い違うため、先に止める。
 - name: Verify the node uses the expected IP address
-  assert:
+  ansible.builtin.assert:
     that: ansible_facts['default_ipv4']['address'] == ansible_host
     fail_msg: "Default IPv4 is {{ ansible_facts['default_ipv4']['address'] }}, expected {{ ansible_host }}"
 
 - name: Check ufw status
   become: true
-  command: ufw status
+  ansible.builtin.command: ufw status
   register: ufw_status
   changed_when: false
   # rc=2 は ufw が未導入の場合。
@@ -17,7 +17,7 @@
   check_mode: false
 
 - name: Verify ufw is inactive
-  assert:
+  ansible.builtin.assert:
     that: "'Status: active' not in (ufw_status.stdout | default(''))"
     fail_msg: "ufw is active. Firewall rules are not managed here; disable ufw (see https://docs.k3s.io/installation/requirements)."
 
@@ -25,7 +25,7 @@
 # バイナリを置き換えるため、途中で失敗したときに導入済みと誤認しないようにする。
 - name: Check the running k3s version and settings
   become: true
-  command:
+  ansible.builtin.command:
     argv:
       - k3s
       - kubectl
@@ -46,7 +46,7 @@
 
 - name: Create the k3s config directory
   become: true
-  file:
+  ansible.builtin.file:
     path: /etc/rancher/k3s
     state: directory
     mode: '0755'
@@ -58,7 +58,7 @@
 # 再起動の要否は稼働中の値との差で決めるため、設定を足すときは上の確認と Install k3s の条件も足す。
 - name: Configure k3s
   become: true
-  copy:
+  ansible.builtin.copy:
     dest: /etc/rancher/k3s/config.yaml
     mode: '0644'
     content: |
@@ -69,7 +69,7 @@
 # バイナリのハッシュはスクリプト側で検証される。
 - name: Download the k3s installer
   become: true
-  get_url:
+  ansible.builtin.get_url:
     url: "https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version | urlencode }}/install.sh"
     dest: /usr/local/src/k3s-install.sh
     checksum: "sha256:{{ k3s_installer_sha256 }}"
@@ -77,7 +77,8 @@
 
 - name: Install k3s
   become: true
-  command: /usr/local/src/k3s-install.sh
+  ansible.builtin.command: /usr/local/src/k3s-install.sh
+  changed_when: true
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     # 設定だけを変えたときも再起動させる。
@@ -90,7 +91,7 @@
 # 固定前の IPv6 が残っている間は k3s がもう一度終了しうるため、IP が固定値だけになるのも待つ。
 - name: Wait for the node to be Ready
   become: true
-  command:
+  ansible.builtin.command:
     argv:
       - k3s
       - kubectl

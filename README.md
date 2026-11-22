@@ -14,6 +14,11 @@ A repository for managing macOS infrastructure using Ansible.
   $ brew install ansible
   ```
 
+- Install ansible-lint (also installed by `localhost-mac.yml`)
+  ```shell
+  $ brew install ansible-lint
+  ```
+
 ## Usage
 
 ### Local Mac
@@ -24,6 +29,12 @@ $ ansible-playbook localhost-mac.yml --diff --check
 
 # Execute the playbook
 $ ansible-playbook localhost-mac.yml
+```
+
+### Lint
+
+```shell
+$ env -u ANSIBLE_HOME ansible-lint
 ```
 
 ### k3s server (Mac mini 2018 / Ubuntu Server 26.04)
@@ -55,10 +66,13 @@ $ KUBECONFIG=~/.kube/config-home kubectl get nodes
 
 ```
 .
+├── .ansible-lint           # ansible-lint settings
+├── .github/workflows/      # CI (ansible-lint, lockfile verification) and actions.lock
 ├── .gitignore
 ├── localhost-mac.yml       # Main Ansible playbook (local Mac)
 ├── k3s-mac-mini.yml        # Ansible playbook for the k3s server
 ├── inventory.yml           # Inventory for the k3s server
+├── requirements.yml        # Collections ansible-lint needs
 ├── README.md               # This documentation file
 ├── docs/
 │   └── k3s-mac-mini-setup.md  # One-time setup before running k3s-mac-mini.yml

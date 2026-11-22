@@ -1,0 +1,4 @@
+---
+skip_list:
+  # 埋め込みの systemd ユニットと jsonpath は折り返せない。
+  - yaml[line-length]

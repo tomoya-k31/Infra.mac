@@ -68,6 +68,7 @@
     - 'expect'                    # Tool for automating interactive applications
     # === Infrastructure as Code ===
     - 'opentofu'                  # Open source Terraform alternative
+    - 'ansible-lint'              # Ansible playbook linter
     # === Cloud Platforms ===
     - 'awscli'                    # AWS command line interface
     - 'cloud-sql-proxy'           # Google Cloud SQL Auth Proxy
@@ -96,7 +97,7 @@
   register: install_results
 
 - name: Show failed packages
-  debug:
+  ansible.builtin.debug:
     msg: "Failed to install: {{ item.item }}"
   loop: "{{ install_results.results | selectattr('failed', 'defined') | selectattr('failed', 'equalto', true) | list }}"
   when: install_results.results is defined

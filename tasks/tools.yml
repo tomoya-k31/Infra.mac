@@ -5,10 +5,11 @@
   environment:
     # export KREW_ROOT="$XDG_DATA_HOME/krew"
     KREW_ROOT: "{{ xdg_data_home }}/krew"
-  script: "{{ playbook_dir }}/scripts/install_krew.sh"
+  ansible.builtin.script: "{{ playbook_dir }}/scripts/install_krew.sh"
 
 - name: Install Krew plugins
-  shell: "kubectl krew install {{ item }}"
+  ansible.builtin.command: "kubectl krew install {{ item }}"
+  changed_when: true
   environment:
     # export PATH="${KREW_ROOT:-$XDG_DATA_HOME/krew}/bin:$PATH"
     PATH: "{{ xdg_data_home }}/krew/bin:{{ lookup('env', 'PATH') }}"
@@ -23,41 +24,44 @@
 - name: Install SOPS binary
   block:
     - name: Get OS and architecture
-      shell: |
+      ansible.builtin.shell: |
+        set -o pipefail
         OS="$(uname | tr '[:upper:]' '[:lower:]')"
         ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')"
         echo "${OS},${ARCH}"
+      args:
+        executable: /bin/bash
       register: os_arch
       changed_when: false
-      check_mode: no
+      check_mode: false
 
     - name: Set OS and architecture variables
-      set_fact:
+      ansible.builtin.set_fact:
         sops_os: "{{ os_arch.stdout.split(',')[0] }}"
         sops_arch: "{{ os_arch.stdout.split(',')[1] }}"
 
     - name: Set SOPS version
-      set_fact:
+      ansible.builtin.set_fact:
         sops_version: "v3.10.1"
 
     - name: Download SOPS binary
-      get_url:
+      ansible.builtin.get_url:
         url: "https://github.com/getsops/sops/releases/download/{{ sops_version }}/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
         dest: "/tmp/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
         mode: '0755'
 
     - name: Create bin directory if it doesn't exist
-      file:
+      ansible.builtin.file:
         path: "{{ lookup('env', 'HOME') }}/.local/bin"
         state: directory
         mode: '0755'
 
     - name: Move SOPS binary to PATH
-      copy:
+      ansible.builtin.copy:
         src: "/tmp/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
         dest: "{{ lookup('env', 'HOME') }}/.local/bin/sops"
         mode: '0755'
-        remote_src: yes
+        remote_src: true
 
 # NOTE: 公式の `curl https://hishtory.dev/install.py | python3 -` は
 # install.py 内部で api.hishtory.dev から配布 URL を取得するため、
@@ -67,42 +71,45 @@
 - name: Install and configure hishtory
   block:
     - name: Check if hishtory is already installed
-      stat:
+      ansible.builtin.stat:
         path: "{{ lookup('env', 'HOME') }}/.hishtory/config.zsh"
       register: hishtory_config
 
     - name: Get OS and architecture for hishtory
-      shell: |
+      ansible.builtin.shell: |
+        set -o pipefail
         OS="$(uname | tr '[:upper:]' '[:lower:]')"
         ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64$/arm64/' -e 's/armv7l$/arm/')"
         echo "${OS},${ARCH}"
+      args:
+        executable: /bin/bash
       register: hishtory_os_arch
       changed_when: false
-      check_mode: no
+      check_mode: false
       when: not hishtory_config.stat.exists
 
     - name: Set hishtory OS, architecture and version variables
-      set_fact:
+      ansible.builtin.set_fact:
         hishtory_os: "{{ hishtory_os_arch.stdout.split(',')[0] }}"
         hishtory_arch: "{{ hishtory_os_arch.stdout.split(',')[1] }}"
         hishtory_version: "v0.335"
       when: not hishtory_config.stat.exists
 
     - name: Download hishtory binary
-      get_url:
+      ansible.builtin.get_url:
         url: "https://github.com/ddworken/hishtory/releases/download/{{ hishtory_version }}/hishtory-{{ hishtory_os }}-{{ hishtory_arch }}"
         dest: "/tmp/hishtory-client-{{ hishtory_version }}"
         mode: '0755'
       when: not hishtory_config.stat.exists
 
     - name: Install hishtory (offline, self-install)
-      shell: "/tmp/hishtory-client-{{ hishtory_version }} install --offline"
+      ansible.builtin.command: "/tmp/hishtory-client-{{ hishtory_version }} install --offline"
       args:
         creates: "{{ lookup('env', 'HOME') }}/.hishtory/config.zsh"
       when: not hishtory_config.stat.exists
 
     - name: Remove temporary hishtory binary
-      file:
+      ansible.builtin.file:
         path: "/tmp/hishtory-client-{{ hishtory_version }}"
         state: absent
       when: not hishtory_config.stat.exists
@@ -110,24 +117,25 @@
     # `install --offline` の時点で syncing は無効化済みのため
     # `hishtory syncing disable`（実行するとエラーになる）は不要。
     - name: Configure hishtory settings
-      shell: |
+      ansible.builtin.shell: |
         hishtory config-set filter-duplicate-commands true
         hishtory config-set timestamp-format '2006/1/2 15:04'
         hishtory config-set full-screen true
+      changed_when: true
       environment:
         PATH: "{{ lookup('env', 'HOME') }}/.hishtory:{{ lookup('env', 'PATH') }}"
 
 - name: Install git-worktree-runner (gtr)
   block:
     - name: Clone git-worktree-runner repository
-      git:
+      ansible.builtin.git:
         repo: https://github.com/coderabbitai/git-worktree-runner.git
         dest: "{{ xdg_data_home }}/git-worktree-runner"
         version: main
-        update: yes
+        update: true
 
     - name: Create symlink for git-gtr
-      file:
+      ansible.builtin.file:
         src: "{{ xdg_data_home }}/git-worktree-runner/bin/git-gtr"
         dest: "{{ lookup('env', 'HOME') }}/.local/bin/git-gtr"
         state: link
@@ -151,19 +159,19 @@
     user_terminfo_dir: "{{ lookup('env', 'HOME') }}/.terminfo"
   block:
     - name: Check if Alacritty.app is installed
-      stat:
+      ansible.builtin.stat:
         path: "{{ alacritty_app_path }}"
       register: alacritty_app
 
     - name: Check if Alacritty.app ships compiled terminfo entries
-      stat:
+      ansible.builtin.stat:
         path: "{{ alacritty_terminfo_src }}"
       register: alacritty_terminfo_bundled
 
     # Alacritty.app があるのに terminfo が見つからないのはバンドル構造が変わった可能性が高い。
     # 黙って飛ばすと TERM が xterm-256color に戻ったことに気付けないため警告する。
     - name: Warn if the bundled terminfo path has moved
-      debug:
+      ansible.builtin.debug:
         msg: >-
           Alacritty.app is installed but {{ alacritty_terminfo_src }} was not found.
           The app bundle layout may have changed; update alacritty_terminfo_src.
@@ -172,10 +180,10 @@
     # `mode` は指定しない。指定するとコピー先ディレクトリにも適用されて 0644
     # （実行ビットなし＝辿れない）になり、terminfo が引けないうえ毎回 changed になる。
     # ファイルはコピー元の 0644 のまま複製される。
-    - name: Copy Alacritty terminfo entries into the user terminfo database
-      copy:
+    - name: Copy Alacritty terminfo entries into the user terminfo database # noqa: risky-file-permissions
+      ansible.builtin.copy:
         src: "{{ alacritty_terminfo_src }}/"
         dest: "{{ user_terminfo_dir }}/{{ alacritty_terminfo_src | basename }}/"
         directory_mode: '0755'
-        remote_src: yes
+        remote_src: true
       when: alacritty_terminfo_bundled.stat.exists
