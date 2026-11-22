@@ -1,6 +1,7 @@
 ---
-# /etc/default/grub は書き換えず、drop-in で既存の値に追記する。反映には再起動が必要。
+# 本体の画面の設定。kiosk と併用する。
 
+# /etc/default/grub は書き換えず、drop-in で既存の値に追記する。反映には再起動が必要。
 - name: Add console kernel parameters
   become: true
   copy:
@@ -9,3 +10,13 @@
     dest: /etc/default/grub.d/99-console.cfg
     mode: '0644'
   notify: Update GRUB
+
+# 起動引数の loglevel は、起動後に Ubuntu 標準の 55-console-messages.conf（4 4 1 7）で上書きされる。
+# 4 のままだとエラーが tty1 に出て k9s の画面に重なる。ログには残る。すぐに反映される。
+- name: Keep kernel errors off the console
+  become: true
+  ansible.posix.sysctl:
+    name: kernel.printk
+    value: "3 4 1 7"
+    sysctl_file: /etc/sysctl.d/99-console-messages.conf
+    sysctl_set: true
