@@ -1,17 +1,12 @@
 ---
 description: Add a new Homebrew package to tasks/homebrew.yml
-allowed-tools:
-  - Read
-  - Edit
-  - Bash(git:*)
-  - Bash(gh:*)
+argument-hint: "[package-name]"
 ---
 
-Use the add-homebrew-tool skill to add "$ARGUMENTS" to tasks/homebrew.yml.
+Add the Homebrew package "$ARGUMENTS" to `tasks/homebrew.yml`.
 
-After adding the package:
-1. Create a git commit with a descriptive message
-2. Create a new branch if on master
-3. Push the branch and create a PR
-4. Enable auto-merge on the PR
-5. Switch back to master branch and delete the created branch locally
+1. Create a branch from an up-to-date `master`.
+2. Run `brew info` to confirm the exact name and whether it is a formula or a cask.
+3. Add a formula to the matching section of `Install homebrew packages`, with an aligned English comment. Add a cask to `Install homebrew cask applications`. Skip it if it is already listed.
+4. Validate with the `ansible-verify` skill.
+5. Follow the Development Rules in `AGENTS.md` before committing. Push and create a PR only when the user asks.

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "ask": [
+      "Bash(ansible *)",
+      "Bash(ansible-playbook *k3s*)",
+      "Bash(ansible-playbook *inventory*)",
+      "Bash(ansible-playbook *become*)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(sftp *)",
+      "Bash(rsync *)",
+      "Bash(kubectl *)",
+      "Bash(kubecolor *)",
+      "Bash(helm *)",
+      "Bash(k9s *)",
+      "Bash(export KUBECONFIG=*)"
+    ],
+    "deny": [
+      "Read(~/.kube/**)"
+    ]
+  }
+}
