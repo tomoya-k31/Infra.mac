@@ -35,7 +35,7 @@ Complete the one-time setup (SSH key and sudo password in 1Password) first:
 # Run a dry-run to see potential changes
 $ ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file scripts/become-password.sh --diff --check
 
-# Install/upgrade k3s and write ~/.kube/config-home on the local Mac
+# Install/upgrade/configure k3s (restarts it when the version or config changes) and write ~/.kube/config-home on the local Mac
 $ ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file scripts/become-password.sh
 
 # Also run the opt-in parts

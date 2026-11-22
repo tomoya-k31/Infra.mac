@@ -21,16 +21,41 @@
     that: "'Status: active' not in (ufw_status.stdout | default(''))"
     fail_msg: "ufw is active. Firewall rules are not managed here; disable ufw (see https://docs.k3s.io/installation/requirements)."
 
-# バイナリの版ではなく稼働中の kubelet の版を見る。インストーラーはサービスの再作成より先に
+# バイナリの版や設定ファイルではなく、稼働中の kubelet の版と flannel の種類を見る。インストーラーはサービスの再作成より先に
 # バイナリを置き換えるため、途中で失敗したときに導入済みと誤認しないようにする。
-- name: Check the running k3s version
+- name: Check the running k3s version and flannel backend
   become: true
   command:
-    argv: [k3s, kubectl, get, nodes, -o, 'jsonpath={.items[0].status.nodeInfo.kubeletVersion}']
+    argv:
+      - k3s
+      - kubectl
+      - get
+      - nodes
+      - -o
+      - 'jsonpath={.items[0].status.nodeInfo.kubeletVersion} {.items[0].metadata.annotations.flannel\.alpha\.coreos\.com/backend-type}'
   register: k3s_running
   changed_when: false
   failed_when: false
   check_mode: false
+
+- name: Create the k3s config directory
+  become: true
+  file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: '0755'
+
+# 既定の vxlan は認証のない 8472/udp を LAN に公開するため、host-gw を使う。
+# 通信は暗号化されない。LAN を信頼できない場合は wireguard-native にする。
+# 一般ユーザーの k3s コマンドも読むため 0644 にする。秘密の値はここに書かない。
+# 再起動の要否は稼働中の値との差で決めるため、設定を足すときは上の確認と Install k3s の条件も足す。
+- name: Configure k3s
+  become: true
+  copy:
+    dest: /etc/rancher/k3s/config.yaml
+    mode: '0644'
+    content: |
+      flannel-backend: {{ k3s_flannel_backend }}
 
 # get.k3s.io は常に最新のスクリプトを返すため、タグとハッシュで固定する。
 # バイナリのハッシュはスクリプト側で検証される。
@@ -47,9 +72,11 @@
   command: /usr/local/src/k3s-install.sh
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
-  when: k3s_running.stdout | default('') != k3s_version
+    # 設定だけを変えたときも再起動させる。
+    INSTALL_K3S_FORCE_RESTART: 'true'
+  when: k3s_running.stdout | default('') != k3s_version ~ ' ' ~ k3s_flannel_backend
 
-# 再起動直後は以前の Ready が残るため、kubelet の版も合わせて確認する。
+# 再起動直後は以前の Ready が残るため、kubelet の版と flannel の種類も合わせて確認する。
 - name: Wait for the node to be Ready
   become: true
   command:
@@ -59,9 +86,9 @@
       - get
       - nodes
       - -o
-      - 'jsonpath={.items[0].status.nodeInfo.kubeletVersion} {.items[0].status.conditions[?(@.type=="Ready")].status}'
+      - 'jsonpath={.items[0].status.nodeInfo.kubeletVersion} {.items[0].metadata.annotations.flannel\.alpha\.coreos\.com/backend-type} {.items[0].status.conditions[?(@.type=="Ready")].status}'
   register: k3s_ready
-  until: k3s_ready.rc == 0 and k3s_ready.stdout == k3s_version ~ ' True'
+  until: k3s_ready.rc == 0 and k3s_ready.stdout == k3s_version ~ ' ' ~ k3s_flannel_backend ~ ' True'
   retries: 36
   delay: 5
   changed_when: false
