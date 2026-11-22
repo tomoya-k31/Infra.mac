@@ -1,6 +1,6 @@
 # Mac mini 2018 (Ubuntu Server 26.04) を k3s サーバーにする。
 # OS のインストール・IP 固定・SSH 公開鍵の登録が済んでいることが前提。
-- name: k3s server playbook
+- name: Set up the k3s server
   hosts: k3s
   # 途中で失敗しても通知済みの handler を実行する。再実行では changed にならず、二度と通知されないため。
   force_handlers: true
@@ -19,27 +19,28 @@
   tasks:
     # never: 明示的に --tags で指定したときだけ実行する。
     - name: Include upgrade tasks
-      import_tasks: tasks/k3s/upgrade.yml
+      ansible.builtin.import_tasks: tasks/k3s/upgrade.yml
       tags: [never, upgrade]
     - name: Include k3s server tasks
-      import_tasks: tasks/k3s/server.yml
+      ansible.builtin.import_tasks: tasks/k3s/server.yml
     - name: Include kubeconfig tasks
-      import_tasks: tasks/k3s/kubeconfig.yml
+      ansible.builtin.import_tasks: tasks/k3s/kubeconfig.yml
     - name: Include console tasks
-      import_tasks: tasks/k3s/console.yml
+      ansible.builtin.import_tasks: tasks/k3s/console.yml
       tags: [never, console]
     - name: Include k9s kiosk tasks
-      import_tasks: tasks/k3s/kiosk.yml
+      ansible.builtin.import_tasks: tasks/k3s/kiosk.yml
       tags: [never, kiosk]
 
   handlers:
     - name: Update GRUB
       become: true
-      command: update-grub
+      ansible.builtin.command: update-grub
+      changed_when: true
 
     - name: Restart k9s kiosk
       become: true
-      systemd_service:
+      ansible.builtin.systemd_service:
         name: k9s-kiosk
         state: restarted
         daemon_reload: true

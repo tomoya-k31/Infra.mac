@@ -1,0 +1,7 @@
+---
+# ansible-lint がモジュールを解決するために使う。実行時は Homebrew の ansible に同梱のものを使う。
+collections:
+  - name: ansible.posix
+    version: 2.1.0
+  - name: community.general
+    version: 12.0.1

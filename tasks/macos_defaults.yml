@@ -6,7 +6,7 @@
     screenshot_dir: "{{ lookup('env', 'HOME') }}/Pictures/Screenshots"
   block:
     - name: Create screenshot directory
-      file:
+      ansible.builtin.file:
         path: "{{ screenshot_dir }}"
         state: directory
         mode: '0755'
@@ -23,8 +23,8 @@
     # defaults の変更は SystemUIServer の再起動で反映される。
     # 変更がないときに再起動してもメニューバーが一瞬点滅するだけで無駄なので、
     # 実際に変更されたときのみ実行する。
-    - name: Restart SystemUIServer to apply screenshot settings
-      command: killall SystemUIServer
+    - name: Restart SystemUIServer to apply screenshot settings # noqa: no-handler
+      ansible.builtin.command: killall SystemUIServer
       register: killall_systemuiserver
       changed_when: killall_systemuiserver.rc == 0
       # SystemUIServer が起動していない場合は rc=1 になるが、

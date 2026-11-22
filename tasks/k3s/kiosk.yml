@@ -5,7 +5,7 @@
 
 - name: Download k9s
   become: true
-  get_url:
+  ansible.builtin.get_url:
     url: "https://github.com/derailed/k9s/releases/download/{{ k9s_version }}/k9s_linux_amd64.deb"
     dest: "/usr/local/src/k9s_{{ k9s_version }}_amd64.deb"
     checksum: "sha256:{{ k9s_deb_sha256 }}"
@@ -13,7 +13,7 @@
 
 - name: Install k9s
   become: true
-  apt:
+  ansible.builtin.apt:
     deb: "/usr/local/src/k9s_{{ k9s_version }}_amd64.deb"
   notify: Restart k9s kiosk
   # 初回の --check では deb がまだ存在しない。
@@ -21,7 +21,7 @@
 
 - name: Create the kiosk user
   become: true
-  user:
+  ansible.builtin.user:
     name: kiosk
     system: true
     shell: /usr/sbin/nologin
@@ -31,7 +31,7 @@
 # このディレクトリのマニフェストは k3s が自動で適用する。
 - name: Deploy the read-only service account
   become: true
-  copy:
+  ansible.builtin.copy:
     dest: /var/lib/rancher/k3s/server/manifests/kiosk.yaml
     mode: '0600'
     content: |
@@ -98,7 +98,7 @@
 
 - name: Read the service account token
   become: true
-  command:
+  ansible.builtin.command:
     argv: [k3s, kubectl, -n, kiosk, get, secret, kiosk-token, -o, 'jsonpath={.data.token} {.data.ca\.crt}']
   register: kiosk_token
   until: kiosk_token.rc == 0 and kiosk_token.stdout.split() | length == 2
@@ -110,7 +110,7 @@
 
 - name: Create the kiosk config directory
   become: true
-  file:
+  ansible.builtin.file:
     path: /etc/k9s-kiosk
     state: directory
     owner: root
@@ -121,7 +121,7 @@
 
 - name: Write the kiosk kubeconfig
   become: true
-  copy:
+  ansible.builtin.copy:
     dest: /etc/k9s-kiosk/kubeconfig
     owner: root
     group: kiosk
@@ -153,14 +153,14 @@
 # 通常のログインは Ctrl+Alt+F2 で行う。
 - name: Disable the login prompt on tty1
   become: true
-  systemd_service:
+  ansible.builtin.systemd_service:
     name: getty@tty1
     state: stopped
     masked: true
 
 - name: Install the k9s kiosk service
   become: true
-  copy:
+  ansible.builtin.copy:
     dest: /etc/systemd/system/k9s-kiosk.service
     mode: '0644'
     content: |
@@ -199,7 +199,7 @@
 
 - name: Enable the k9s kiosk service
   become: true
-  systemd_service:
+  ansible.builtin.systemd_service:
     name: k9s-kiosk
     enabled: true
     state: started

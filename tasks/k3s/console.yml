@@ -4,7 +4,7 @@
 # /etc/default/grub は書き換えず、drop-in で既存の値に追記する。反映には再起動が必要。
 - name: Add console kernel parameters
   become: true
-  copy:
+  ansible.builtin.copy:
     content: |
       GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT {{ console_kernel_params }}"
     dest: /etc/default/grub.d/99-console.cfg

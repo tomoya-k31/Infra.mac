@@ -9,28 +9,36 @@
 - name: Install Rust by rustup
   block:
     - name: Check if rustup is already installed
-      stat:
+      ansible.builtin.stat:
         path: "{{ xdg_data_home }}/cargo/bin/rustup"
       register: rustup_bin
 
-    - name: Install Rust by rustup
+    - name: Install Rust by rustup # noqa: command-instead-of-module
       environment:
         # export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
         # export CARGO_HOME="$XDG_DATA_HOME/cargo"
         RUSTUP_HOME: "{{ xdg_data_home }}/rustup"
         CARGO_HOME: "{{ xdg_data_home }}/cargo"
-      shell: curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
+      args:
+        executable: /bin/bash
+      changed_when: true
       when: not rustup_bin.stat.exists
 
-- name: Install SDKMAN
+# 導入済みだとインストーラーが途中で終了し、curl が書き込みに失敗しうるため、pipefail は使わない。
+- name: Install SDKMAN # noqa: command-instead-of-module risky-shell-pipe
   environment:
     # export SDKMAN_DIR="$XDG_DATA_HOME/sdkman"
     SDKMAN_DIR: "{{ xdg_data_home }}/sdkman"
   # SDKMAN requires Bash 4+; macOS default is 3.2 so use Homebrew bash explicitly.
-  shell: curl -s "https://get.sdkman.io" | /opt/homebrew/bin/bash -s -- -y
+  ansible.builtin.shell: curl -s "https://get.sdkman.io" | /opt/homebrew/bin/bash -s -- -y
+  changed_when: true
 
 - name: Install pipx
-  shell: pip install --user pipx
+  ansible.builtin.command: pip install --user pipx
+  changed_when: true
   when: pip_path is file
   tags: [langs, pip, python]
   vars:
