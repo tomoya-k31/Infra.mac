@@ -1,6 +1,7 @@
 ---
 # 本体の画面 (tty1) に k9s を常時表示する。
-# 注意: 本体の前にいる人は、パスワードなしでログインユーザーとして操作できる。
+# 自動ログインは使わず、シェルを持たない kiosk ユーザーの systemd サービスとして動かす。
+# 権限は閲覧専用の ServiceAccount に限る（Secret は読めない）。
 
 - name: Download k9s
   become: true
@@ -14,42 +15,188 @@
   become: true
   apt:
     deb: "/usr/local/src/k9s_{{ k9s_version }}_amd64.deb"
-  notify: Restart tty1
+  notify: Restart k9s kiosk
   # 初回の --check では deb がまだ存在しない。
   ignore_errors: "{{ ansible_check_mode }}"
 
-- name: Start k9s on tty1 from ~/.profile
-  blockinfile:
-    path: "{{ ansible_facts['user_dir'] }}/.profile"
-    marker: "# {mark} ANSIBLE MANAGED BLOCK: k9s kiosk"
-    block: |
-      if [ "$(tty)" = /dev/tty1 ]; then
-        while :; do
-          until err=$(kubectl get --raw=/readyz 2>&1 >/dev/null); do
-            clear
-            echo "Waiting for k3s: $err"
-            sleep 5
-          done
-          k9s --readonly -c pulse
-          sleep 3
-        done
-      fi
-  notify: Restart tty1
-
-- name: Create the getty drop-in directory
+- name: Create the kiosk user
   become: true
-  file:
-    path: /etc/systemd/system/getty@tty1.service.d
-    state: directory
-    mode: '0755'
+  user:
+    name: kiosk
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/k9s-kiosk
+    password: '!'
 
-- name: Enable autologin on tty1
+# このディレクトリのマニフェストは k3s が自動で適用する。
+- name: Deploy the read-only service account
   become: true
   copy:
+    dest: /var/lib/rancher/k3s/server/manifests/kiosk.yaml
+    mode: '0600'
     content: |
-      [Service]
-      ExecStart=
-      ExecStart=-/sbin/agetty --autologin {{ ansible_facts['user_id'] }} --noclear %I $TERM
-    dest: /etc/systemd/system/getty@tty1.service.d/autologin.conf
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: kiosk
+      ---
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: kiosk
+        namespace: kiosk
+      automountServiceAccountToken: false
+      ---
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: kiosk-token
+        namespace: kiosk
+        annotations:
+          kubernetes.io/service-account.name: kiosk
+      type: kubernetes.io/service-account-token
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: kiosk-view
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: view
+      subjects:
+        - kind: ServiceAccount
+          name: kiosk
+          namespace: kiosk
+      ---
+      # 組み込みの view には、クラスタ全体のリソースであるノードなどが含まれない。
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: kiosk-cluster-view
+      rules:
+        - apiGroups: [""]
+          resources: [nodes, persistentvolumes]
+          verbs: [get, list, watch]
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: kiosk-cluster-view
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: kiosk-cluster-view
+      subjects:
+        - kind: ServiceAccount
+          name: kiosk
+          namespace: kiosk
+
+- name: Read the service account token
+  become: true
+  command:
+    argv: [k3s, kubectl, -n, kiosk, get, secret, kiosk-token, -o, 'jsonpath={.data.token} {.data.ca\.crt}']
+  register: kiosk_token
+  until: kiosk_token.rc == 0 and kiosk_token.stdout.split() | length == 2
+  retries: 24
+  delay: 5
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Create the kiosk config directory
+  become: true
+  file:
+    path: /etc/k9s-kiosk
+    state: directory
+    owner: root
+    group: kiosk
+    mode: '0750'
+  # 初回の --check では kiosk グループがまだ存在しない。
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Write the kiosk kubeconfig
+  become: true
+  copy:
+    dest: /etc/k9s-kiosk/kubeconfig
+    owner: root
+    group: kiosk
+    mode: '0640'
+    content: |
+      apiVersion: v1
+      kind: Config
+      clusters:
+        - name: k3s
+          cluster:
+            server: https://127.0.0.1:6443
+            certificate-authority-data: {{ kiosk_token.stdout.split()[1] }}
+      users:
+        - name: kiosk
+          user:
+            token: {{ kiosk_token.stdout.split()[0] | b64decode }}
+      contexts:
+        - name: kiosk
+          context:
+            cluster: k3s
+            user: kiosk
+      current-context: kiosk
+  diff: false
+  no_log: true
+  when: not ansible_check_mode
+  notify: Restart k9s kiosk
+
+# マスクしないと、tty1 への切り替え時に logind が getty を起動しうる。
+# 通常のログインは Ctrl+Alt+F2 で行う。
+- name: Disable the login prompt on tty1
+  become: true
+  systemd_service:
+    name: getty@tty1
+    state: stopped
+    masked: true
+
+- name: Install the k9s kiosk service
+  become: true
+  copy:
+    dest: /etc/systemd/system/k9s-kiosk.service
     mode: '0644'
-  notify: Restart tty1
+    content: |
+      [Unit]
+      Description=k9s on tty1
+      After=systemd-user-sessions.service getty@tty1.service
+      StartLimitIntervalSec=0
+
+      [Service]
+      User=kiosk
+      Environment=TERM=linux
+      Environment=KUBECONFIG=/etc/k9s-kiosk/kubeconfig
+      WorkingDirectory=/var/lib/k9s-kiosk
+      # k9s は --readonly でも :screendumps からエディターを起動しうる。
+      UnsetEnvironment=EDITOR VISUAL KUBE_EDITOR K9S_EDITOR
+      # API の準備ができるまで、理由を画面に出して待つ。
+      ExecStartPre=/bin/sh -c 'until err=$$(kubectl get --raw=/readyz 2>&1 >/dev/null); do clear; echo "Waiting for k3s: $$err"; sleep 5; done'
+      TimeoutStartSec=infinity
+      ExecStart=/usr/bin/k9s --readonly -c pulse
+      StandardInput=tty
+      StandardOutput=tty
+      StandardError=tty
+      TTYPath=/dev/tty1
+      TTYReset=yes
+      TTYVHangup=yes
+      NoNewPrivileges=yes
+      Restart=always
+      RestartSec=3
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Restart k9s kiosk
+
+- name: Enable the k9s kiosk service
+  become: true
+  systemd_service:
+    name: k9s-kiosk
+    enabled: true
+    state: started
+    daemon_reload: true
+    # API を待つ間は起動中のままになるため、完了を待たない。
+    no_block: true
+  when: not ansible_check_mode

@@ -57,7 +57,7 @@ Before every commit, stage the changes, run both `/code-review` and `/security-r
 `k3s-mac-mini.yml` imports `tasks/k3s/`:
 
 1. **server.yml** - k3s installation and readiness check
-2. **kubeconfig.yml** - kubeconfig on the server and `~/.kube/config-home` on the local Mac
+2. **kubeconfig.yml** - admin kubeconfig at `~/.kube/config-home` on the local Mac only; on the server use `sudo k3s kubectl`
 3. **upgrade.yml**, **console.yml**, **kiosk.yml** - opt-in parts tagged `never`; add them with `--tags all,upgrade,console,kiosk`
 
 Helper scripts live in `scripts/`.

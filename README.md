@@ -41,7 +41,7 @@ $ ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file scri
 # Also run the opt-in parts
 #   upgrade: apt upgrade (never reboots)
 #   console: kernel parameters for the attached display (applied on next reboot)
-#   kiosk:   autologin on tty1 and show k9s (anyone at the machine gets a logged-in shell)
+#   kiosk:   show k9s on tty1 as an unprivileged user with read-only access (log in with Ctrl+Alt+F2)
 $ ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file scripts/become-password.sh --tags all,upgrade,console,kiosk
 
 # Reboot the server

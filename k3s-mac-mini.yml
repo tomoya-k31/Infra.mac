@@ -35,9 +35,11 @@
       become: true
       command: update-grub
 
-    - name: Restart tty1
+    - name: Restart k9s kiosk
       become: true
       systemd_service:
-        name: getty@tty1
+        name: k9s-kiosk
         state: restarted
         daemon_reload: true
+        no_block: true
+      when: not ansible_check_mode
