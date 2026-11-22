@@ -1,0 +1,55 @@
+---
+# 本体の画面 (tty1) に k9s を常時表示する。
+# 注意: 本体の前にいる人は、パスワードなしでログインユーザーとして操作できる。
+
+- name: Download k9s
+  become: true
+  get_url:
+    url: "https://github.com/derailed/k9s/releases/download/{{ k9s_version }}/k9s_linux_amd64.deb"
+    dest: "/usr/local/src/k9s_{{ k9s_version }}_amd64.deb"
+    checksum: "sha256:{{ k9s_deb_sha256 }}"
+    mode: '0644'
+
+- name: Install k9s
+  become: true
+  apt:
+    deb: "/usr/local/src/k9s_{{ k9s_version }}_amd64.deb"
+  notify: Restart tty1
+  # 初回の --check では deb がまだ存在しない。
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Start k9s on tty1 from ~/.profile
+  blockinfile:
+    path: "{{ ansible_facts['user_dir'] }}/.profile"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: k9s kiosk"
+    block: |
+      if [ "$(tty)" = /dev/tty1 ]; then
+        while :; do
+          until err=$(kubectl get --raw=/readyz 2>&1 >/dev/null); do
+            clear
+            echo "Waiting for k3s: $err"
+            sleep 5
+          done
+          k9s --readonly -c pulse
+          sleep 3
+        done
+      fi
+  notify: Restart tty1
+
+- name: Create the getty drop-in directory
+  become: true
+  file:
+    path: /etc/systemd/system/getty@tty1.service.d
+    state: directory
+    mode: '0755'
+
+- name: Enable autologin on tty1
+  become: true
+  copy:
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=-/sbin/agetty --autologin {{ ansible_facts['user_id'] }} --noclear %I $TERM
+    dest: /etc/systemd/system/getty@tty1.service.d/autologin.conf
+    mode: '0644'
+  notify: Restart tty1
