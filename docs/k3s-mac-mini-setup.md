@@ -124,7 +124,7 @@ ansible k3s -i inventory.yml -m ping
 
 `pong` が返れば準備完了です。以降は [README の Usage](../README.md#usage) を参照してください。
 
-初回の `--check` では、まだ存在しない `k3s.yaml` や k9s の deb を参照するタスクが `ignored` になります。`failed=0` なら問題ありません。
+初回の `--check` では、まだ存在しない `k3s.yaml`、k9s の deb、`kiosk` グループを参照するタスクが `ignored` になります。`failed=0` なら問題ありません。
 
 ## 補足
 
