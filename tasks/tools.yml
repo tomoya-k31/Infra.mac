@@ -1,19 +1,17 @@
 ---
-# その他のツール関連のタスク
+# その他のツール関連のタスク（Apple Silicon 専用）
 
-- name: Install Krew
-  environment:
-    # export KREW_ROOT="$XDG_DATA_HOME/krew"
-    KREW_ROOT: "{{ xdg_data_home }}/krew"
-  ansible.builtin.script: "{{ playbook_dir }}/scripts/install_krew.sh"
-
+# Krew 本体は Homebrew で入れる。導入済みのプラグインは更新しない（更新は `kubectl krew upgrade`）。
 - name: Install Krew plugins
   ansible.builtin.command: "kubectl krew install {{ item }}"
-  changed_when: true
+  args:
+    creates: "{{ xdg_data_home }}/krew/receipts/{{ item }}.yaml"
   environment:
+    # export KREW_ROOT="$XDG_DATA_HOME/krew"
     # export PATH="${KREW_ROOT:-$XDG_DATA_HOME/krew}/bin:$PATH"
+    KREW_ROOT: "{{ xdg_data_home }}/krew"
     PATH: "{{ xdg_data_home }}/krew/bin:{{ lookup('env', 'PATH') }}"
-  with_items:
+  loop:
     - stern
     - ctx
     - ns
@@ -22,47 +20,23 @@
     - cost
 
 - name: Install SOPS binary
+  vars:
+    sops_version: "v3.10.1"
+    sops_sha256: e197a40869ece97400c2ca08f195c04d39945158558b2d4203791b24022fc467
   block:
-    - name: Get OS and architecture
-      ansible.builtin.shell: |
-        set -o pipefail
-        OS="$(uname | tr '[:upper:]' '[:lower:]')"
-        ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')"
-        echo "${OS},${ARCH}"
-      args:
-        executable: /bin/bash
-      register: os_arch
-      changed_when: false
-      check_mode: false
-
-    - name: Set OS and architecture variables
-      ansible.builtin.set_fact:
-        sops_os: "{{ os_arch.stdout.split(',')[0] }}"
-        sops_arch: "{{ os_arch.stdout.split(',')[1] }}"
-
-    - name: Set SOPS version
-      ansible.builtin.set_fact:
-        sops_version: "v3.10.1"
-
-    - name: Download SOPS binary
-      ansible.builtin.get_url:
-        url: "https://github.com/getsops/sops/releases/download/{{ sops_version }}/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
-        dest: "/tmp/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
-        mode: '0755'
-
     - name: Create bin directory if it doesn't exist
       ansible.builtin.file:
         path: "{{ lookup('env', 'HOME') }}/.local/bin"
         state: directory
         mode: '0755'
 
-    - name: Move SOPS binary to PATH
-      ansible.builtin.copy:
-        src: "/tmp/sops-{{ sops_version }}.{{ sops_os }}.{{ sops_arch }}"
+    - name: Download SOPS binary
+      ansible.builtin.get_url:
+        url: "https://github.com/getsops/sops/releases/download/{{ sops_version }}/sops-{{ sops_version }}.darwin.arm64"
         dest: "{{ lookup('env', 'HOME') }}/.local/bin/sops"
+        checksum: "sha256:{{ sops_sha256 }}"
         mode: '0755'
-        remote_src: true
-      # --check では SOPS をダウンロードしないため、/tmp にファイルがないと失敗する。
+      # 初回の --check では ~/.local/bin がまだ存在しない。
       ignore_errors: "{{ ansible_check_mode }}"
 
 # NOTE: 公式の `curl https://hishtory.dev/install.py | python3 -` は
@@ -70,37 +44,28 @@
 # 同バックエンドの障害（例: 502 Bad Gateway）でインストールが失敗する。
 # それを避けるため、SOPS と同じく GitHub Releases から直接バイナリを取得し、
 # バイナリ自身の `install --offline` でセルフインストールする。
+# 導入済みの Mac では、hishtory_version を上げても更新されない（更新は `hishtory update`）。
 - name: Install and configure hishtory
+  vars:
+    hishtory_version: "v0.335"
+    hishtory_sha256: 01850a83522c38d27643503530287bf86281044109487e219051789165e43d14
+    hishtory_settings:
+      filter-duplicate-commands: 'true'
+      timestamp-format: '2006/1/2 15:04'
+      full-screen: 'true'
+  environment:
+    PATH: "{{ lookup('env', 'HOME') }}/.hishtory:{{ lookup('env', 'PATH') }}"
   block:
     - name: Check if hishtory is already installed
       ansible.builtin.stat:
         path: "{{ lookup('env', 'HOME') }}/.hishtory/config.zsh"
       register: hishtory_config
 
-    - name: Get OS and architecture for hishtory
-      ansible.builtin.shell: |
-        set -o pipefail
-        OS="$(uname | tr '[:upper:]' '[:lower:]')"
-        ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64$/arm64/' -e 's/armv7l$/arm/')"
-        echo "${OS},${ARCH}"
-      args:
-        executable: /bin/bash
-      register: hishtory_os_arch
-      changed_when: false
-      check_mode: false
-      when: not hishtory_config.stat.exists
-
-    - name: Set hishtory OS, architecture and version variables
-      ansible.builtin.set_fact:
-        hishtory_os: "{{ hishtory_os_arch.stdout.split(',')[0] }}"
-        hishtory_arch: "{{ hishtory_os_arch.stdout.split(',')[1] }}"
-        hishtory_version: "v0.335"
-      when: not hishtory_config.stat.exists
-
     - name: Download hishtory binary
       ansible.builtin.get_url:
-        url: "https://github.com/ddworken/hishtory/releases/download/{{ hishtory_version }}/hishtory-{{ hishtory_os }}-{{ hishtory_arch }}"
+        url: "https://github.com/ddworken/hishtory/releases/download/{{ hishtory_version }}/hishtory-darwin-arm64"
         dest: "/tmp/hishtory-client-{{ hishtory_version }}"
+        checksum: "sha256:{{ hishtory_sha256 }}"
         mode: '0755'
       when: not hishtory_config.stat.exists
 
@@ -118,14 +83,26 @@
 
     # `install --offline` の時点で syncing は無効化済みのため
     # `hishtory syncing disable`（実行するとエラーになる）は不要。
+    - name: Read hishtory settings
+      ansible.builtin.command:
+        argv: [hishtory, config-get, "{{ item.key }}"]
+      loop: "{{ hishtory_settings | dict2items }}"
+      register: hishtory_current
+      changed_when: false
+      check_mode: false
+      # 初回の --check では hishtory がまだ存在しない。
+      when: hishtory_config.stat.exists or not ansible_check_mode
+
     - name: Configure hishtory settings
-      ansible.builtin.shell: |
-        hishtory config-set filter-duplicate-commands true
-        hishtory config-set timestamp-format '2006/1/2 15:04'
-        hishtory config-set full-screen true
+      ansible.builtin.command:
+        argv: [hishtory, config-set, "{{ item.item.key }}", "{{ item.item.value }}"]
+      loop: "{{ hishtory_current.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
       changed_when: true
-      environment:
-        PATH: "{{ lookup('env', 'HOME') }}/.hishtory:{{ lookup('env', 'PATH') }}"
+      when:
+        - item is not skipped
+        - item.stdout != item.item.value
 
 - name: Install git-worktree-runner (gtr)
   block:
@@ -133,7 +110,7 @@
       ansible.builtin.git:
         repo: https://github.com/coderabbitai/git-worktree-runner.git
         dest: "{{ xdg_data_home }}/git-worktree-runner"
-        version: main
+        version: 18c0b1b8ce3ff75726d7832bc8e59b6d21543596 # v3.1.0
         update: true
 
     - name: Create symlink for git-gtr
@@ -141,6 +118,8 @@
         src: "{{ xdg_data_home }}/git-worktree-runner/bin/git-gtr"
         dest: "{{ lookup('env', 'HOME') }}/.local/bin/git-gtr"
         state: link
+      # 初回の --check では clone されず、リンク元がない。
+      ignore_errors: "{{ ansible_check_mode }}"
 
 # Alacritty は子プロセスへ渡す TERM を決める際、terminfo データベースに `alacritty`
 # エントリが引けるかを確認し、無ければ `xterm-256color` にフォールバックする。

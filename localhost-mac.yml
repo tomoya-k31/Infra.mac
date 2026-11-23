@@ -1,19 +1,10 @@
-- name: Infra.mac playbook
+- name: Set up the local Mac
   hosts: localhost
   gather_facts: false
   connection: local
 
-  pre_tasks:
-    - name: Set XDG environment variables if not defined
-      ansible.builtin.set_fact:
-        xdg_data_home: "{{ lookup('env', 'XDG_DATA_HOME') | default(lookup('env', 'HOME') + '/.local/share', true) }}"
-        xdg_config_home: "{{ lookup('env', 'XDG_CONFIG_HOME') | default(lookup('env', 'HOME') + '/.config', true) }}"
-
-    - name: Show XDG environment variables
-      ansible.builtin.debug:
-        msg:
-          - "XDG_DATA_HOME: {{ xdg_data_home }}"
-          - "XDG_CONFIG_HOME: {{ xdg_config_home }}"
+  vars:
+    xdg_data_home: "{{ lookup('env', 'XDG_DATA_HOME') | default(lookup('env', 'HOME') + '/.local/share', true) }}"
 
   tasks:
     - name: Include Homebrew tasks

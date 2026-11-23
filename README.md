@@ -84,13 +84,13 @@ $ KUBECONFIG=~/.kube/config-home kubectl get nodes
 │   └── k3s-mac-mini-setup.md  # One-time setup before running k3s-mac-mini.yml
 ├── scripts/
 │   ├── become-password.sh  # Reads the k3s server's sudo password from 1Password
-│   ├── install_krew.sh     # Script to install Krew (kubectl plugin manager)
 │   └── update-ai-content.sh  # Imports third-party AI content at pinned commits (needs Lola)
 ├── third_party/            # Licenses of the imported AI content
 └── tasks/
-    ├── homebrew.yml        # Tasks for Homebrew (tap, install packages)
-    ├── tools.yml           # Tasks for other tools (Krew, SOPS)
-    ├── langs.yml           # Tasks for language tools (Rust, SDKMAN, Rye)
+    ├── homebrew.yml        # Tasks for Homebrew formulae and casks
+    ├── tools.yml           # Tasks for other tools (Krew plugins, SOPS, hishtory, gtr, Alacritty terminfo)
+    ├── langs.yml           # Tasks for language tools (Rust, SDKMAN)
+    ├── macos_defaults.yml  # Tasks for macOS system preferences
     └── k3s/                # Tasks for the k3s server
 ```
 
@@ -98,7 +98,7 @@ The repository is organized as follows:
 
 - **localhost-mac.yml**: The main Ansible playbook that orchestrates the setup process.
 - **tasks/**: Directory containing modular Ansible task files:
-  - **homebrew.yml**: Manages Homebrew taps and package installations.
+  - **homebrew.yml**: Manages Homebrew formulae and casks.
   - **tools.yml**: Installs various development and operational tools.
   - **langs.yml**: Sets up programming language environments and tools.
 - **scripts/**: Contains helper scripts used during the setup process.
