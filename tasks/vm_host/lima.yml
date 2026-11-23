@@ -519,3 +519,16 @@
   delay: 5
   changed_when: false
   when: not ansible_check_mode
+
+# Running でも、起動時のスクリプトが固定 IP を付け終えたとは限らない。
+# until の再試行が尽きると failed_when に関係なく失敗するため、確かめ方はタスク名で示す。
+- name: Wait for lima0 to get the static IP (check /etc/netplan/60-lima0-static.yaml in the VM; recreate the VM if the IP changed after creation)
+  ansible.builtin.command:
+    argv: ["{{ vm_host_limactl }}", shell, "{{ vm_host_vm_name }}", --, ip, -4, -o, addr, show, dev, lima0]
+  register: vm_host_vm_lan
+  # 「.1/24」が「.11/24」に一致しないよう、前後の区切りも含めて探す。
+  until: "(' inet ' ~ vm_host_vm_ip ~ '/' ~ vm_host_vm_prefix ~ ' ') in vm_host_vm_lan.stdout"
+  retries: 24
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode
