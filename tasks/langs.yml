@@ -27,6 +27,7 @@
       changed_when: true
       when: not rustup_bin.stat.exists
 
+# rcupdate=false: ~/.zshrc と ~/.bash_profile に追記させない。sdkman-init.sh の読み込みは dotfiles で行う。
 - name: Install SDKMAN # noqa: command-instead-of-module
   environment:
     # export SDKMAN_DIR="$XDG_DATA_HOME/sdkman"
@@ -34,7 +35,7 @@
   # SDKMAN requires Bash 4+; macOS default is 3.2 so use Homebrew bash explicitly.
   ansible.builtin.shell: |
     set -o pipefail
-    curl -fsSL "https://get.sdkman.io" | /opt/homebrew/bin/bash -s -- -y
+    curl -fsSL "https://get.sdkman.io?rcupdate=false" | /opt/homebrew/bin/bash -s -- -y
   args:
     executable: /bin/bash
     creates: "{{ xdg_data_home }}/sdkman/bin/sdkman-init.sh"
