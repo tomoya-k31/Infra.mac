@@ -61,8 +61,8 @@ install -m 600 "$d/token" "$s/token"
 install -m 600 "$d/password" "$n/password"
 rm -f "$s/db/state.db-wal" "$s/db/state.db-shm"
 systemctl start k3s
-' _ "$d"
-# 別のホスト名に復元したときは、ノードが登録されるまで待つ。
+' _ "$d" &&
+# 入れ替えが成功したときだけ待つ。別のホスト名に復元したときは、ノードが登録されるまで待つ。
 timeout 180 bash -c 'until sudo k3s kubectl wait --for=condition=Ready "node/$(hostname | tr A-Z a-z)" --timeout=10s 2>/dev/null; do sleep 5; done'
 ```
 
