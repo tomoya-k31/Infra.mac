@@ -1,6 +1,6 @@
 ---
 name: update-versions
-description: Update a version pinned in this repository (k3s, k9s, SOPS, hishtory, git-worktree-runner, Ansible collections, gh-actions-lock, or GitHub Actions) together with its checksum or lockfile. Use when asked to bump, upgrade, or check for newer pinned versions.
+description: Update a version pinned in this repository (k3s, k9s, SOPS, hishtory, Ansible collections, gh-actions-lock, or GitHub Actions) together with its checksum or lockfile. Use when asked to bump, upgrade, or check for newer pinned versions.
 ---
 
 # Update a pinned version
@@ -12,7 +12,6 @@ Change one component per branch. Read its release notes first and report breakin
 | k3s | `k3s_version` in `k3s-mac-mini.yml` | `k3s_installer_sha256` |
 | k9s | `k9s_version` in `k3s-mac-mini.yml` | `k9s_deb_sha256` |
 | SOPS, hishtory | `*_version` in `tasks/tools.yml` | `*_sha256`. hishtory is skipped on Macs that already have it, so tell the user |
-| git-worktree-runner | commit in `tasks/tools.yml` | the tag in its comment |
 | Ansible collections | `requirements.yml` | match the versions bundled with Homebrew's ansible |
 | Lola | `lola_version` and the header of `scripts/update-ai-content.sh` | the versions in `AGENTS.md`; check that its hook and install behavior has not changed |
 | gh-actions-lock | `verify-lockfile.yml` | the version in `AGENTS.md` |
