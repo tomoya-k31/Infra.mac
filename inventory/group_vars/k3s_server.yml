@@ -2,3 +2,6 @@
 # server 間で一致させる値
 # 全ノードが同じ L2 にあることが条件。
 k3s_flannel_backend: host-gw
+# agent の参加に使う token。server token（管理者相当）を agent に渡さないよう、別に設定する。
+# 値は 1Password にだけ置く。変えると server の k3s を再起動する。
+k3s_agent_token_ref: op://Dev/k3s-agent-token/password

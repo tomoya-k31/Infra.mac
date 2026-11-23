@@ -51,6 +51,47 @@
     state: directory
     mode: '0755'
 
+# agent の参加に使う token。指定しないと、管理者相当の server token が agent token を兼ねる。
+# config.yaml は一般ユーザーも読めるため、値は root だけが読めるファイルに置き、agent-token-file で指す。
+- name: Read the agent token from 1Password
+  ansible.builtin.set_fact:
+    k3s_agent_token_value: "{{ lookup('ansible.builtin.pipe', 'op read ' ~ k3s_agent_token_ref) }}"
+  no_log: true
+
+# 空のファイルだと k3s が server token を agent token として使いかねないため、短い値は受け付けない。
+- name: Verify the agent token is not empty
+  ansible.builtin.assert:
+    that: k3s_agent_token_value | length >= 32
+    fail_msg: "The agent token from {{ k3s_agent_token_ref }} is shorter than 32 characters"
+  no_log: true
+
+- name: Write the agent token
+  become: true
+  ansible.builtin.copy:
+    content: "{{ k3s_agent_token_value }}"
+    dest: /etc/rancher/k3s/agent-token
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  diff: false
+
+# 書いた後、再起動の前に失敗しても次の実行で読み直させるよう、読み込ませた token のハッシュを残す。
+- name: Read the checksum of the agent token
+  become: true
+  ansible.builtin.stat:
+    path: /etc/rancher/k3s/agent-token
+    checksum_algorithm: sha256
+  register: k3s_agent_token_stat
+
+- name: Read the checksum of the loaded agent token
+  become: true
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/.agent-token-applied
+  register: k3s_agent_token_applied
+  # 初回はまだない。
+  failed_when: false
+
 # 既定の vxlan は認証のない 8472/udp を LAN に公開するため、host-gw を使う。
 # 通信は暗号化されない。LAN を信頼できない場合は wireguard-native にする。
 # node-ip を固定しないと、IPv6 アドレスが付いたり変わったりするたびに kube-proxy と k3s が終了する。
@@ -64,6 +105,7 @@
     content: |
       flannel-backend: {{ k3s_flannel_backend }}
       node-ip: {{ ansible_host }}
+      agent-token-file: /etc/rancher/k3s/agent-token
 
 # get.k3s.io は常に最新のスクリプトを返すため、タグとハッシュで固定する。
 # バイナリのハッシュはスクリプト側で検証される。
@@ -75,17 +117,41 @@
     checksum: "sha256:{{ k3s_installer_sha256 }}"
     mode: '0755'
 
+# 再起動の前の Ready を、再起動の後のものと取り違えないよう、プロセスが入れ替わったかで確かめる。
+- name: Read the k3s process ID
+  become: true
+  ansible.builtin.systemd_service:
+    name: k3s
+  register: k3s_pid_before
+  failed_when: false
+  check_mode: false
+
 - name: Install k3s
   become: true
   ansible.builtin.command: /usr/local/src/k3s-install.sh
+  register: k3s_install
   changed_when: true
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     # 設定だけを変えたときも再起動させる。
     INSTALL_K3S_FORCE_RESTART: 'true'
+  # agent token を読み込ませていない（変えた、または前回の再起動の前に失敗した）ときも再起動する。
   when: >-
     not (k3s_running.stdout | default('')).startswith(k3s_version ~ ' ' ~ k3s_flannel_backend ~ ' ')
     or '"--node-ip","' ~ ansible_host ~ '"' not in k3s_running.stdout
+    or '"--agent-token-file","/etc/rancher/k3s/agent-token"' not in k3s_running.stdout
+    or (k3s_agent_token_applied.content | default('') | b64decode | trim) != k3s_agent_token_stat.stat.checksum | default('')
+
+- name: Wait for k3s to restart
+  become: true
+  ansible.builtin.systemd_service:
+    name: k3s
+  register: k3s_pid_after
+  until: k3s_pid_after.status.MainPID | default('0') not in ['0', k3s_pid_before.status.MainPID | default('0')]
+  retries: 24
+  delay: 5
+  # インストールのタスクは、実行されれば必ず再起動する。
+  when: k3s_install is not skipped
 
 # 再起動直後は以前の Ready が残るため、kubelet の版と設定も合わせて確認する。
 # 固定前の IPv6 が残っている間は k3s がもう一度終了しうるため、IP が固定値だけになるのも待つ。
@@ -105,7 +171,18 @@
     k3s_ready.rc == 0
     and k3s_ready.stdout.startswith(k3s_version ~ ' ' ~ k3s_flannel_backend ~ ' True ' ~ ansible_host ~ ' [')
     and '"--node-ip","' ~ ansible_host ~ '"' in k3s_ready.stdout
+    and '"--agent-token-file","/etc/rancher/k3s/agent-token"' in k3s_ready.stdout
   retries: 36
   delay: 5
   changed_when: false
+  when: not ansible_check_mode
+
+- name: Record the checksum of the loaded agent token
+  become: true
+  ansible.builtin.copy:
+    content: "{{ k3s_agent_token_stat.stat.checksum }}\n"
+    dest: /etc/rancher/k3s/.agent-token-applied
+    owner: root
+    group: root
+    mode: '0600'
   when: not ansible_check_mode

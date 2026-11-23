@@ -7,7 +7,7 @@ Rules for AI agents (Claude Code, GitHub Copilot) working in this repository. `C
 Ansible automation for three independent targets:
 
 - **Local Mac** (`localhost-mac.yml`): development environment (Homebrew packages, programming languages, development tools)
-- **k3s server** (`k3s-mac-mini.yml`): a remote Mac mini 2018 running Ubuntu Server 26.04, managed over SSH
+- **k3s server and agent** (`k3s-mac-mini.yml`): a remote Mac mini 2018 running Ubuntu Server 26.04 as the server, and an Ubuntu VM on the M4 (`k3s-agent-vm`) as the agent, managed over SSH
 - **VM host** (`k3s-vm-host.yml`): a remote M4 Mac mini running macOS that will host the k3s agent VM, managed over SSH. It is not a k3s node and is not in the `k3s` group
 
 ## Repository Boundary
@@ -124,12 +124,14 @@ Where this repository differs from the imported content:
 3. **tasks/tools.yml** - Additional tools (Krew plugins, SOPS, hishtory, Alacritty terminfo)
 4. **tasks/macos_defaults.yml** - macOS system preferences via `defaults` (screenshot location)
 
-`k3s-mac-mini.yml` runs on the `k3s_server` group and imports `tasks/k3s/`. Variables live in `inventory/`: `group_vars/k3s.yml` for values every node shares, including the k3s version (upgrade the servers before the agents: an agent must not run a newer version than the servers), `group_vars/k3s_server.yml` for values that must match across servers, and `host_vars/` for one host. Set `k3s_version` and `k3s_installer_sha256` only in `group_vars/k3s.yml`, and `k3s_flannel_backend` only in `group_vars/k3s_server.yml`: `host_vars/` and any child group file, such as a future `group_vars/k3s_agent.yml`, override them without warning:
+`k3s-mac-mini.yml` runs on the `k3s_server` group, then on the `k3s_agent` group, and imports `tasks/k3s/`. Variables live in `inventory/`: `group_vars/k3s.yml` for values every node shares, including the k3s version (upgrade the servers before the agents: an agent must not run a newer version than the servers), `group_vars/k3s_server.yml` for values that must match across servers, and `host_vars/` for one host. Set `k3s_version` and `k3s_installer_sha256` only in `group_vars/k3s.yml`, and `k3s_flannel_backend` only in `group_vars/k3s_server.yml`: `host_vars/` and any child group file, such as a future `group_vars/k3s_agent.yml`, override them without warning:
 
-1. **server.yml** - k3s installation, config, and readiness check; restarts the live cluster when the version, flannel backend, or node IP changes
+1. **server.yml** - k3s installation, config, and readiness check; restarts the live cluster when the version, flannel backend, node IP, or agent token changes. The agent token comes from 1Password (`k3s_agent_token_ref`) into a root-only file, so agents never get the server token
 2. **kubeconfig.yml** - admin kubeconfig at `~/.kube/config-home` on the local Mac only; on the server use `sudo k3s kubectl`
 3. **upgrade.yml**, **console.yml**, **kiosk.yml** - opt-in parts tagged `never`; add them with `--tags all,upgrade,console,kiosk`
 4. **backup.yml** - opt-in (`--tags backup`): the SQLite datastore and the server token, encrypted with age on the local Mac (`docs/k3s-backup-restore.md`). Take one before upgrading k3s or adding a node
+
+A second play runs `tasks/k3s/agent.yml` (and `upgrade.yml` with `--tags upgrade`) on the `k3s_agent` group after the server play, one host at a time (`any_errors_fatal` stops it if the server fails). The agent reads the agent token from the server, pins `node-ip` and `flannel-iface` to its LAN interface (`k3s_node_iface`), and is checked from the server with `k3s kubectl`. `--limit k3s_server` updates only the server.
 
 `k3s-vm-host.yml` runs on the `vm_hosts` group and imports `tasks/vm_host/`: `power.yml` (no sleep, restart after a power failure) and `lima.yml` (Lima, socket_vmnet, and the k3s agent VM bridged to the LAN at a fixed IP, started at boot by a LaunchDaemon). Its sudo password comes from `scripts/vm-host-become-password.sh` (see Key Patterns, VM host).
 
@@ -151,7 +153,7 @@ Helper scripts live in `scripts/`. The target layout and its migration steps are
 - Network configuration (netplan) is managed by hand, because Ansible depends on it to connect
 - `k3s_flannel_backend` is `host-gw`: every node must be on the same L2 network, and every server must use the same value
 - `node-ip` is pinned to the host's IPv4 address: k3s exits when an auto-detected node IP changes, such as when IPv6 appears after boot
-- Reboots are manual: the cluster is a single node
+- Reboots are manual and one host at a time. Rebooting the only server stops the API for the whole cluster; drain an agent (`kubectl drain`) before rebooting it
 - A backup holds the server token, which equals cluster-admin access: keep it encrypted, never print it, and never commit it. A restore needs both the datastore and that token
 
 ### VM host
@@ -160,6 +162,7 @@ Helper scripts live in `scripts/`. The target layout and its migration steps are
 - The VM host is not a k3s node: keep it out of the `k3s` group and out of `tasks/k3s/`
 - `socket_vmnet_version` and `socket_vmnet_sha256` change together
 - `socket_vmnet` runs as root through sudoers, so it lives in root-owned `/opt/socket_vmnet` from the official release, not from Homebrew
-- Lima reads the VM definition only when it creates the VM; after changing `vm_host_vm_*` or the definition, recreate it: `limactl stop`, `sudo launchctl bootout system/io.lima-vm.daemon.<name>`, `limactl delete`, then run the playbook
+- Lima reads the VM definition only when it creates the VM; after changing `vm_host_vm_*` or the definition, recreate it: `limactl stop`, `sudo launchctl bootout system/io.lima-vm.daemon.<name>`, `limactl delete`, then run the playbook. If the VM was a k3s agent, also run `sudo k3s kubectl delete node <node>` on the server before it rejoins; otherwise k3s rejects the new VM's node password
 - A running socket_vmnet keeps its interface and binary: after changing `vm_host_bridge_interface` or `socket_vmnet_version`, reboot the VM host. Start the VM only through the LaunchDaemon, not with `limactl start`
+- The playbook authorizes the controller's key in the VM and adds the VM's host key to the local `known_hosts` through the M4, so the first SSH connection to the VM is verified
 - `reboot` inside the VM restarts it in place, but `poweroff` leaves it stopped until the next playbook run (`launchctl kickstart`) or a reboot of the VM host

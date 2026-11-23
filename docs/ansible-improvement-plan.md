@@ -73,7 +73,7 @@ tasks/                       # Mac 用。ロールにしない（vm_host/ は VM
 - 確認: 別の環境で復元を試す。復元できるまで段階 4 に進まない（2026-11-23、M4 上の一時的な VM で復元を確認。`docs/k3s-backup-restore.md`）
 - 危険: 中（整合性のある取得には停止か SQLite のバックアップ機能が要る。手順は実施時に公式文書で確認する）
 
-### 段階 4: agent ノードの追加
+### 段階 4: agent ノードの追加（実施中）
 
 - 既存のタスクを `k3s_common`、`k3s_server` に分け、`k3s_agent` を足す。既存サーバーの dry-run が `changed=0` であることを先に確認する
 - join には server token ではなく agent token を使う。server token は管理者相当（[token](https://docs.k3s.io/cli/token)）。1Password に置き、`no_log` と 0600 にする

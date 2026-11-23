@@ -1,0 +1,224 @@
+---
+# k3s agent のタスク。server の play の後に、k3s_agent グループで実行する。
+# 状態の確認と Ready の待機は、agent では kubectl を使えないため server で行う。
+
+- name: Verify the agent uses the expected IP address on its LAN interface
+  ansible.builtin.assert:
+    that:
+      - k3s_node_iface is defined
+      - (ansible_facts[k3s_node_iface] | default({})).ipv4.address | default('') == ansible_host
+    fail_msg: "{{ k3s_node_iface | default('k3s_node_iface (set it in host_vars)') }} has {{ ansible_facts[k3s_node_iface]['ipv4']['address'] | default('no IPv4') }}, expected {{ ansible_host }}"
+
+- name: Check ufw status
+  become: true
+  ansible.builtin.command: ufw status
+  register: ufw_status
+  changed_when: false
+  # rc=2 は ufw が未導入の場合。
+  failed_when: ufw_status.rc not in [0, 2]
+  check_mode: false
+
+- name: Verify ufw is inactive
+  ansible.builtin.assert:
+    that: "'Status: active' not in (ufw_status.stdout | default(''))"
+    fail_msg: "ufw is active. Firewall rules are not managed here; disable ufw (see https://docs.k3s.io/installation/requirements)."
+
+- name: Check the running k3s agent version and settings
+  become: true
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - get
+      - node
+      - "{{ ansible_facts['nodename'] | lower }}"
+      - -o
+      - 'jsonpath={.status.nodeInfo.kubeletVersion} {.metadata.annotations.k3s\.io/node-args}'
+  register: k3s_agent_running
+  delegate_to: "{{ groups['k3s_server'][0] }}"
+  # 未参加のとき（NotFound）だけを未導入とみなす。API の一時的な不調ですぐに入れ直さない。
+  until: k3s_agent_running.rc == 0 or 'NotFound' in k3s_agent_running.stderr or ansible_check_mode
+  retries: 12
+  delay: 5
+  changed_when: false
+  # API が止まり続けているときは、入れ直さずに止める。初回の --check では server に k3s がまだない。
+  failed_when: k3s_agent_running.rc != 0 and 'NotFound' not in k3s_agent_running.stderr and not ansible_check_mode
+  check_mode: false
+
+# --limit k3s_agent などで server の play を飛ばしても、server より新しい版にせず、server token も受け取らない。
+- name: Read the servers' running versions and settings
+  become: true
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - get
+      - nodes
+      - -l
+      - node-role.kubernetes.io/control-plane=true
+      - -o
+      - 'jsonpath={range .items[*]}{.status.nodeInfo.kubeletVersion} {.metadata.annotations.k3s\.io/node-args}{"\n"}{end}'
+  register: k3s_agent_servers
+  delegate_to: "{{ groups['k3s_server'][0] }}"
+  changed_when: false
+  check_mode: false
+  # 初回の --check では server に k3s がまだない。
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Verify every server runs this version with a dedicated agent token
+  ansible.builtin.assert:
+    that:
+      - k3s_agent_servers.stdout_lines | length > 0
+      - k3s_agent_servers.stdout_lines | reject('match', '^' ~ (k3s_version | regex_escape) ~ ' ') | list | length == 0
+      - k3s_agent_servers.stdout_lines | reject('search', '"--agent-token-file"') | list | length == 0
+    fail_msg: "Run the server play first: every server must run {{ k3s_version }} with agent-token-file"
+  # --check では server の play が実際には変えないため、版を上げる dry-run でも止めない。
+  when: k3s_agent_servers.rc | default(1) == 0 and not ansible_check_mode
+
+# server が書き出す agent token は、server の CA のハッシュを含む形式。agent は参加の前に server を確かめられる。
+- name: Read the agent token from the server
+  become: true
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/agent-token
+  register: k3s_agent_token
+  delegate_to: "{{ groups['k3s_server'][0] }}"
+  no_log: true
+  # 初回の --check では server に agent token のファイルがまだない。
+  ignore_errors: "{{ ansible_check_mode }}"
+
+# server token は「::server:」、agent token は「::node:」を含む。
+- name: Verify the token is an agent token
+  ansible.builtin.assert:
+    that: "'::node:' in (k3s_agent_token.content | b64decode)"
+    fail_msg: "/var/lib/rancher/k3s/server/agent-token is not an agent token; run the server play first"
+  no_log: true
+  # --check では server の play が agent token を実際には設定しないため、移行の dry-run でも止めない。
+  when: k3s_agent_token.content is defined and not ansible_check_mode
+
+- name: Create the k3s config directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: '0755'
+
+- name: Write the agent token
+  become: true
+  ansible.builtin.copy:
+    content: "{{ k3s_agent_token.content | b64decode }}"
+    dest: /etc/rancher/k3s/token
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  diff: false
+  when: k3s_agent_token.content is defined
+
+# node-ip と flannel-iface を LAN 側に固定する。既定の経路の端子（Lima の NAT 側）を選ばせない。
+- name: Configure the k3s agent
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/config.yaml
+    mode: '0644'
+    content: |
+      server: https://{{ hostvars[groups['k3s_server'][0]]['ansible_host'] }}:6443
+      token-file: /etc/rancher/k3s/token
+      node-ip: {{ ansible_host }}
+      flannel-iface: {{ k3s_node_iface }}
+
+# 書いた後、再起動の前に失敗しても次の実行で読み直させるよう、読み込ませた設定と token のハッシュを残す。
+- name: Read the checksums of the agent config and token
+  become: true
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    checksum_algorithm: sha256
+  loop: [/etc/rancher/k3s/config.yaml, /etc/rancher/k3s/token]
+  register: k3s_agent_files
+
+- name: Read the checksums of the loaded agent config and token
+  become: true
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/.agent-applied
+  register: k3s_agent_applied
+  # 初回はまだない。
+  failed_when: false
+
+- name: Decide whether the agent must reload its config
+  ansible.builtin.set_fact:
+    k3s_agent_files_sum: "{{ k3s_agent_files.results | map(attribute='stat.checksum', default='') | join(' ') }}"
+
+- name: Download the k3s installer
+  become: true
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version | urlencode }}/install.sh"
+    dest: /usr/local/src/k3s-install.sh
+    checksum: "sha256:{{ k3s_installer_sha256 }}"
+    mode: '0755'
+
+# 再起動の前の Ready を、再起動の後のものと取り違えないよう、プロセスが入れ替わったかで確かめる。
+- name: Read the k3s agent process ID
+  become: true
+  ansible.builtin.systemd_service:
+    name: k3s-agent
+  register: k3s_agent_pid_before
+  failed_when: false
+  check_mode: false
+
+- name: Install the k3s agent
+  become: true
+  ansible.builtin.command: /usr/local/src/k3s-install.sh
+  register: k3s_agent_install
+  changed_when: true
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_EXEC: agent
+    # 設定だけを変えたときも再起動させる。
+    INSTALL_K3S_FORCE_RESTART: 'true'
+  when: >-
+    not (k3s_agent_running.stdout | default('')).startswith(k3s_version ~ ' ')
+    or '"--node-ip","' ~ ansible_host ~ '"' not in k3s_agent_running.stdout
+    or (k3s_agent_applied.content | default('') | b64decode | trim) != k3s_agent_files_sum
+
+- name: Wait for the k3s agent to restart
+  become: true
+  ansible.builtin.systemd_service:
+    name: k3s-agent
+  register: k3s_agent_pid_after
+  until: k3s_agent_pid_after.status.MainPID | default('0') not in ['0', k3s_agent_pid_before.status.MainPID | default('0')]
+  retries: 24
+  delay: 5
+  # インストールのタスクは、実行されれば必ず再起動する。
+  when: k3s_agent_install is not skipped
+
+# 版と IP に加えて、設定（flannel-iface）が反映されたことも確かめる。
+- name: Wait for the agent node to be Ready
+  become: true
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - get
+      - node
+      - "{{ ansible_facts['nodename'] | lower }}"
+      - -o
+      - 'jsonpath={.status.nodeInfo.kubeletVersion} {.status.conditions[?(@.type=="Ready")].status} {.status.addresses[?(@.type=="InternalIP")].address} {.metadata.annotations.k3s\.io/node-args}'
+  register: k3s_agent_ready
+  until: >-
+    k3s_agent_ready.rc == 0
+    and k3s_agent_ready.stdout.startswith(k3s_version ~ ' True ' ~ ansible_host ~ ' [')
+    and '"--flannel-iface","' ~ k3s_node_iface ~ '"' in k3s_agent_ready.stdout
+  retries: 36
+  delay: 5
+  changed_when: false
+  delegate_to: "{{ groups['k3s_server'][0] }}"
+  when: not ansible_check_mode
+
+- name: Record the checksums of the loaded agent config and token
+  become: true
+  ansible.builtin.copy:
+    content: "{{ k3s_agent_files_sum }}\n"
+    dest: /etc/rancher/k3s/.agent-applied
+    owner: root
+    group: root
+    mode: '0600'
+  when: not ansible_check_mode

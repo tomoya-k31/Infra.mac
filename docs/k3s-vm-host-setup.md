@@ -105,6 +105,24 @@ ansible mac-mini-m4 -i inventory -m ping
 ansible mac-mini-m4 -i inventory -b --become-password-file scripts/vm-host-become-password.sh -m command -a id
 ```
 
+## 6. VM（k3s agent）への SSH
+
+`k3s-vm-host.yml` を実行すると、M4 の公開鍵が VM に登録され、VM のホスト鍵が手元の `~/.ssh/known_hosts` に登録されます（M4 経由で読むので、初回接続でも照合できる）。
+Ansible が VM に接続できるよう、`~/.ssh/config` に追記します（鍵は M4 と共用）。
+
+```text
+Host k3s-agent-vm 192.168.11.201
+  HostName 192.168.11.201
+  User tomoya-k31
+  IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+  IdentityFile ~/.ssh/k3s-mac-mini-m4.pub
+  IdentitiesOnly yes
+```
+
+```shell
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes 192.168.11.201 'hostname; sudo -n true && echo sudo-ok'
+```
+
 ## 補足
 
 - `scripts/vm-host-become-password.sh` は実行ビットが必須です。ないと、スクリプトの本文がパスワードとして扱われます

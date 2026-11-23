@@ -51,7 +51,7 @@ export SDKMAN_DIR="$XDG_DATA_HOME/sdkman"
 $ env -u ANSIBLE_HOME ansible-lint
 ```
 
-### k3s server (Mac mini 2018 / Ubuntu Server 26.04)
+### k3s server and agent (Mac mini 2018 / Ubuntu Server 26.04, and the VM on the M4)
 
 Complete the one-time setup (SSH key and sudo password in 1Password) first:
 [docs/k3s-mac-mini-setup.md](docs/k3s-mac-mini-setup.md)
@@ -72,6 +72,9 @@ $ ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/
 # Back up the datastore and the server token, encrypted with age on the local Mac
 # (take one before upgrading k3s or adding a node; see docs/k3s-backup-restore.md)
 $ ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh --tags backup
+
+# Update only the server (agents follow in a later run)
+$ ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh --limit k3s_server
 
 # Reboot the server (one host at a time)
 $ ansible mac-mini-2018 -i inventory -b --become-password-file scripts/become-password.sh -m reboot
