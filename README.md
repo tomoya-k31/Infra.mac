@@ -69,6 +69,10 @@ $ ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/
 #   kiosk:   show k9s on tty1 as an unprivileged user with read-only access (log in with Ctrl+Alt+F2); use with console
 $ ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh --tags all,upgrade,console,kiosk
 
+# Back up the datastore and the server token, encrypted with age on the local Mac
+# (take one before upgrading k3s or adding a node; see docs/k3s-backup-restore.md)
+$ ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh --tags backup
+
 # Reboot the server (one host at a time)
 $ ansible mac-mini-2018 -i inventory -b --become-password-file scripts/become-password.sh -m reboot
 
@@ -108,6 +112,7 @@ $ ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/v
 ├── README.md               # This documentation file
 ├── docs/
 │   ├── ansible-improvement-plan.md  # Target layout and migration steps
+│   ├── k3s-backup-restore.md  # Backing up and restoring the k3s datastore
 │   ├── k3s-mac-mini-setup.md  # One-time setup before running k3s-mac-mini.yml
 │   └── k3s-vm-host-setup.md   # One-time setup before running k3s-vm-host.yml
 ├── scripts/
