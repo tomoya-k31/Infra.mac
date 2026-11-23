@@ -129,6 +129,7 @@ Where this repository differs from the imported content:
 1. **server.yml** - k3s installation, config, and readiness check; restarts the live cluster when the version, flannel backend, or node IP changes
 2. **kubeconfig.yml** - admin kubeconfig at `~/.kube/config-home` on the local Mac only; on the server use `sudo k3s kubectl`
 3. **upgrade.yml**, **console.yml**, **kiosk.yml** - opt-in parts tagged `never`; add them with `--tags all,upgrade,console,kiosk`
+4. **backup.yml** - opt-in (`--tags backup`): the SQLite datastore and the server token, encrypted with age on the local Mac (`docs/k3s-backup-restore.md`). Take one before upgrading k3s or adding a node
 
 `k3s-vm-host.yml` runs on the `vm_hosts` group and imports `tasks/vm_host/`: `power.yml` (no sleep, restart after a power failure) and `lima.yml` (Lima, socket_vmnet, and the k3s agent VM bridged to the LAN at a fixed IP, started at boot by a LaunchDaemon). Its sudo password comes from `scripts/vm-host-become-password.sh` (see Key Patterns, VM host).
 
@@ -151,6 +152,7 @@ Helper scripts live in `scripts/`. The target layout and its migration steps are
 - `k3s_flannel_backend` is `host-gw`: every node must be on the same L2 network, and every server must use the same value
 - `node-ip` is pinned to the host's IPv4 address: k3s exits when an auto-detected node IP changes, such as when IPv6 appears after boot
 - Reboots are manual: the cluster is a single node
+- A backup holds the server token, which equals cluster-admin access: keep it encrypted, never print it, and never commit it. A restore needs both the datastore and that token
 
 ### VM host
 

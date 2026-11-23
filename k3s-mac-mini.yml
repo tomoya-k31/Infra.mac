@@ -8,6 +8,10 @@
 
   tasks:
     # never: 明示的に --tags で指定したときだけ実行する。
+    # k3s の更新（k3s_version の変更）やノードの追加の前に取る。--tags all,backup なら、server.yml による更新より前に取る。
+    - name: Include backup tasks
+      ansible.builtin.import_tasks: tasks/k3s/backup.yml
+      tags: [never, backup]
     - name: Include upgrade tasks
       ansible.builtin.import_tasks: tasks/k3s/upgrade.yml
       tags: [never, upgrade]

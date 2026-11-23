@@ -1,0 +1,161 @@
+---
+# k3s のデータストア（SQLite）、server token、ノードのパスワードを、手元の Mac に age で暗号化して保存する。
+# token がないとバックアップを復元できない（データストア内の秘密の値の暗号化に使われる）。
+# 平文は server の root だけが入れる一時ディレクトリと、Ansible のメモリにだけ置く。
+# ANSIBLE_DEBUG を付けて実行しない（no_log が効かず、内容がログに出る）。
+
+- name: Create a root-only working directory for the backup
+  become: true
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: k3s-backup.
+  register: k3s_backup_tmp
+
+- name: Back up the k3s datastore
+  when: not ansible_check_mode
+  vars:
+    # 保存先と、暗号化に使う age の鍵ファイル（SOPS と共用）。どちらも手元の Mac のパス。
+    k3s_backup_dir: "{{ lookup('ansible.builtin.env', 'HOME') }}/.local/share/k3s-backup"
+    k3s_backup_age_key: "{{ lookup('ansible.builtin.env', 'HOME') }}/.config/sops/age/keys.txt"
+  block:
+    # WAL を使っているため、ファイルを複製せず SQLite のオンラインバックアップで一貫した複製を作る。
+    - name: Copy the datastore with SQLite's online backup
+      become: true
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+            import sqlite3, sys
+            # 読み取り専用で開く。ファイルがないときに空のデータベースを作らない。
+            src = sqlite3.connect("file:" + sys.argv[1] + "?mode=ro", uri=True)
+            dst = sqlite3.connect(sys.argv[2])
+            src.backup(dst)
+            ok = dst.execute("PRAGMA integrity_check").fetchone()[0]
+            kine = dst.execute("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'kine'").fetchone()[0]
+            dst.close()
+            src.close()
+            if ok != "ok":
+                sys.exit("integrity_check: " + ok)
+            if kine != 1:
+                sys.exit("no kine table: not a k3s datastore")
+          - /var/lib/rancher/k3s/server/db/state.db
+          - "{{ k3s_backup_tmp.path }}/state.db"
+      changed_when: true
+
+    # 同じホスト名で作り直した server でも参加できるよう、ノードのパスワードも入れる。
+    - name: Archive the datastore, the server token, and the node password
+      become: true
+      ansible.builtin.command:
+        argv:
+          - tar
+          - -czf
+          - "{{ k3s_backup_tmp.path }}/k3s-backup.tar.gz"
+          - -C
+          - "{{ k3s_backup_tmp.path }}"
+          - state.db
+          - -C
+          - /var/lib/rancher/k3s/server
+          - token
+          - -C
+          - /etc/rancher/node
+          - password
+      changed_when: true
+
+    - name: Read the archive
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ k3s_backup_tmp.path }}/k3s-backup.tar.gz"
+      register: k3s_backup_archive
+      no_log: true
+
+    - name: Create the local backup directory
+      ansible.builtin.file:
+        path: "{{ k3s_backup_dir }}"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+
+    # 復元には同じ版の k3s が要るため、版をファイル名に入れる。
+    # インベントリの k3s_version は更新の前に上げることがあり、ディスクのバイナリも更新の途中で先に入れ替わるため、
+    # 動いている kubelet の版を読む（server.yml と同じ方法）。
+    - name: Read the running k3s version
+      become: true
+      ansible.builtin.command:
+        argv:
+          - k3s
+          - kubectl
+          - get
+          - node
+          - "{{ ansible_facts['nodename'] | lower }}"
+          - -o
+          - jsonpath={.status.nodeInfo.kubeletVersion}
+      register: k3s_backup_version
+      changed_when: false
+      failed_when: k3s_backup_version.rc != 0 or not k3s_backup_version.stdout.startswith('v')
+
+    - name: Name the backup file
+      ansible.builtin.set_fact:
+        k3s_backup_file: "{{ k3s_backup_dir }}/{{ inventory_hostname }}-{{ k3s_backup_version.stdout }}-{{ now(utc=true, fmt='%Y%m%dT%H%M%SZ') }}.tar.gz.b64.age"
+
+    # age -e -i は鍵ファイルに対応する公開鍵で暗号化する。stdin は文字列なので base64 のまま渡す。
+    # パイプラインでないと、Ansible がモジュールの引数（平文）を ~/.ansible/tmp にファイルとして書く。
+    # 確かめ終わるまでは一時的な名前にし、壊れたファイルが正規の名前で残らないようにする。
+    - name: Encrypt the archive on the local Mac
+      ansible.builtin.command:
+        argv: [age, -e, -i, "{{ k3s_backup_age_key }}", -o, "{{ k3s_backup_file }}.partial"]
+        stdin: "{{ k3s_backup_archive.content }}"
+      vars:
+        ansible_pipelining: true
+      delegate_to: localhost
+      changed_when: true
+      no_log: true
+
+    - name: Restrict the backup file
+      ansible.builtin.file:
+        path: "{{ k3s_backup_file }}.partial"
+        mode: '0600'
+      delegate_to: localhost
+
+    # 復号でき、データストアと token の両方が入っていることを、平文をディスクに書かずに確かめる。
+    - name: Verify the backup file
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        age -d -i {{ k3s_backup_age_key | quote }} {{ (k3s_backup_file ~ '.partial') | quote }} | base64 -d | tar -tzf -
+      args:
+        executable: /bin/bash
+      register: k3s_backup_listing
+      changed_when: false
+      # 一覧が合っていても、復号や gzip の CRC のエラーは終了コードに出る。
+      failed_when: k3s_backup_listing.rc != 0 or k3s_backup_listing.stdout_lines | sort != ['password', 'state.db', 'token']
+      delegate_to: localhost
+
+    - name: Give the backup file its final name
+      ansible.builtin.command:
+        argv: [mv, "{{ k3s_backup_file }}.partial", "{{ k3s_backup_file }}"]
+      delegate_to: localhost
+      changed_when: true
+
+    - name: Show the backup file
+      ansible.builtin.debug:
+        msg: "Backup written to {{ k3s_backup_file | replace(lookup('ansible.builtin.env', 'HOME'), '~') }}"
+
+  rescue:
+    - name: Remove the incomplete backup file
+      ansible.builtin.file:
+        path: "{{ k3s_backup_file }}.partial"
+        state: absent
+      delegate_to: localhost
+      when: k3s_backup_file is defined
+
+    - name: Fail after removing the incomplete backup
+      ansible.builtin.fail:
+        msg: "The backup failed; no backup file was kept"
+
+  always:
+    - name: Remove the working directory
+      become: true
+      ansible.builtin.file:
+        path: "{{ k3s_backup_tmp.path }}"
+        state: absent
+      when: k3s_backup_tmp.path is defined
