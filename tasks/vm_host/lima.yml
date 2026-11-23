@@ -532,3 +532,38 @@
   delay: 5
   changed_when: false
   when: not ansible_check_mode
+
+# 手元の Mac から VM へ直接 SSH できるようにする（k3s agent の play が使う）。
+# VM の SSH は公開鍵認証だけなので、M4 経由（limactl shell）で公開鍵を登録する。
+- name: Authorize the controller's SSH key in the VM
+  ansible.builtin.command:
+    argv:
+      - "{{ vm_host_limactl }}"
+      - shell
+      - "{{ vm_host_vm_name }}"
+      - --
+      - sh
+      - -c
+      - >-
+        k=$(cat) && umask 077 && mkdir -p ~/.ssh && touch ~/.ssh/authorized_keys &&
+        if grep -qxF "$k" ~/.ssh/authorized_keys; then echo present; else printf '%s\n' "$k" >> ~/.ssh/authorized_keys && echo added; fi
+    stdin: "{{ lookup('ansible.builtin.file', vm_host_vm_authorized_key_file) }}"
+  register: vm_host_vm_authorized
+  changed_when: "'added' in vm_host_vm_authorized.stdout"
+  when: not ansible_check_mode
+
+# LAN 越しに初めて受け取ったホスト鍵を信じないよう、M4 経由で読んで手元の known_hosts に登録する。
+- name: Read the VM's SSH host key
+  ansible.builtin.command:
+    argv: ["{{ vm_host_limactl }}", shell, "{{ vm_host_vm_name }}", --, cat, /etc/ssh/ssh_host_ed25519_key.pub]
+  register: vm_host_vm_host_key
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Trust the VM's SSH host key on the local Mac
+  ansible.builtin.known_hosts:
+    name: "{{ vm_host_vm_ip }}"
+    key: "{{ vm_host_vm_ip }} {{ vm_host_vm_host_key.stdout.split()[:2] | join(' ') }}"
+    state: present
+  delegate_to: localhost
+  when: not ansible_check_mode

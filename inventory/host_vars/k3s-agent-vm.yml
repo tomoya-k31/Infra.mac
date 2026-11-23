@@ -1,0 +1,3 @@
+---
+# LAN 側の端子。既定の経路は Lima の NAT 側（eth0）なので、k3s と flannel をこちらに固定する。
+k3s_node_iface: lima0

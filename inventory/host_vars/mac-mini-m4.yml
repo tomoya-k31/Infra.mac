@@ -8,3 +8,5 @@ vm_host_vm_disk: 64GiB
 vm_host_bridge_interface: en0
 vm_host_vm_ip: 192.168.11.201
 vm_host_vm_prefix: 24
+# 手元の Mac から VM へ Ansible で接続する公開鍵（M4 と共用。秘密鍵は 1Password）。
+vm_host_vm_authorized_key_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.ssh/k3s-mac-mini-m4.pub"

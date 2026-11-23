@@ -1,10 +1,12 @@
-# Mac mini 2018 (Ubuntu Server 26.04) を k3s サーバーにする。
+# Mac mini 2018 (Ubuntu Server 26.04) を k3s サーバーにし、agent（M4 上の VM）を参加させる。
 # OS のインストール・IP 固定・SSH 公開鍵の登録が済んでいることが前提。
 # 変数は inventory/ の group_vars と host_vars にある。
 - name: Set up the k3s server
   hosts: k3s_server
   # 途中で失敗しても通知済みの handler を実行する。再実行では changed にならず、二度と通知されないため。
   force_handlers: true
+  # server で失敗したら agent に進まない（agent は server より新しい版にしない）。
+  any_errors_fatal: true
 
   tasks:
     # never: 明示的に --tags で指定したときだけ実行する。
@@ -40,3 +42,16 @@
         daemon_reload: true
         no_block: true
       when: not ansible_check_mode
+
+# server の後に agent を参加させる。--limit k3s_server で server だけを更新できる。
+- name: Join the k3s agents
+  hosts: k3s_agent
+  # 更新や再起動は 1 台ずつ。
+  serial: 1
+
+  tasks:
+    - name: Include upgrade tasks
+      ansible.builtin.import_tasks: tasks/k3s/upgrade.yml
+      tags: [never, upgrade]
+    - name: Include k3s agent tasks
+      ansible.builtin.import_tasks: tasks/k3s/agent.yml
