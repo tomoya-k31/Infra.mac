@@ -25,6 +25,7 @@
     - 'neovim'                    # Modern vim fork
     # === Programming Language Tools ===
     - 'mise'                      # Polyglot runtime manager (asdf alternative)
+    - 'pipx'                      # Python application installer
     - 'delve'                     # Go debugger
     - 'shfmt'                     # Shell script formatter
     - 'shellcheck'                # Shell script static analyzer
@@ -74,6 +75,7 @@
     - 'cloud-sql-proxy'           # Google Cloud SQL Auth Proxy
     # === Kubernetes Tools ===
     - 'kubectl'                   # Kubernetes command line tool
+    - 'krew'                      # kubectl plugin manager
     - 'kind'                      # Kubernetes in Docker
     - 'kubecolor'                 # Colorized kubectl output
     - 'k9s'                       # Kubernetes TUI
@@ -94,16 +96,6 @@
     # - 'alp'                     # Access log profiler
     # - 'graphviz'                # Graph visualization
     # - 'mysql-client'            # MySQL client
-  register: install_results
-
-- name: Show failed packages
-  ansible.builtin.debug:
-    msg: "Failed to install: {{ item.item }}"
-  loop: "{{ install_results.results | selectattr('failed', 'defined') | selectattr('failed', 'equalto', true) | list }}"
-  when: install_results.results is defined
-  loop_control:
-    label: "{{ item.item }}"
-  run_once: true
 
 - name: Install homebrew cask applications
   community.general.homebrew_cask:

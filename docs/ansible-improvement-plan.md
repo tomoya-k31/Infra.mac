@@ -1,6 +1,6 @@
 # Ansible 構成の改善プラン
 
-2026-11 時点の調査に基づく提案です。段階 0 だけ実施済みで、段階 1 以降は着手前に承認を得ます。
+2026-11 時点の調査に基づく提案です。段階 0 と、段階 2 のうち Mac 用タスクの指摘の修正だけ実施済みで、段階 1 以降は着手前に承認を得ます。
 
 ## 対象と方針
 
@@ -24,12 +24,8 @@
 | 高 | kubeconfig をホストごとに同じファイルへ書く。複数台では最後のノードで上書きされる | `tasks/k3s/kubeconfig.yml` |
 | 高 | `config.yaml` が 0644。join 用の token を書けない | `tasks/k3s/server.yml` |
 | 中 | Mac ごとの差分を表せない | `tasks/homebrew.yml` |
-| 中 | SOPS と hishtory にチェックサムがない。git-worktree-runner は `main` を追う | `tasks/tools.yml` |
-| 中 | SDKMAN の取得失敗を検出できず、毎回実行される | `tasks/langs.yml` |
-| 中 | `Show failed packages` は動かない（先に play が失敗する） | `tasks/homebrew.yml` |
-| 低 | 新しい Mac の dry-run は、git-gtr のリンク作成で失敗する（clone が行われないため） | `tasks/tools.yml` |
-| 低 | hishtory の設定は最後の 1 つしか失敗を検出しない | `tasks/tools.yml` |
-| 低 | krew、pipx などが毎回 changed になる。`pip install` と `with_items` が残る | `tasks/tools.yml`、`tasks/langs.yml` |
+| 中 | API が 1 分以上止まっていると、稼働中の k3s を未導入とみなして再起動しうる | `tasks/k3s/server.yml` |
+| 中 | kiosk のマニフェストが AGENTS.md の境界の原則と矛盾する。例外にするか移すかは未決 | `tasks/k3s/kiosk.yml` |
 
 ## 目標の構成
 
@@ -65,10 +61,9 @@ tasks/                       # Mac 用。ロールにしない
 - 確認: `ansible-inventory --list` で移行前後の変数が同じ。dry-run が `changed=0`
 - 危険: 低（サーバーの状態は変えない）。戻し方: revert
 
-### 段階 2: Mac の複数台対応と指摘の修正
+### 段階 2: Mac の複数台対応
 
 - Homebrew の一覧を `vars/mac/` へ移し、共通分とプロファイル分を結合する。プロファイル未指定は失敗にする
-- 上の「中」「低」の課題を直す。`pipx` は Homebrew で入れる
 - 確認: 各 Mac で dry-run の後に実行し、2 回目が `changed=0`。dry-run では動かない `command` のタスクがあるため、実機で 1 台ずつ確認する
 - 危険: 低〜中
 

@@ -46,7 +46,7 @@ ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file script
 env -u ANSIBLE_HOME ansible-lint
 ```
 
-Validation is `ansible-lint` (local and CI) and `--check --diff`; there are no tests. In a dry-run, `ignored` tasks are expected on a fresh k3s server and for the SOPS copy when its binary is not in `/tmp`.
+Validation is `ansible-lint` (local and CI) and `--check --diff`; there are no tests. In a dry-run, `ignored` tasks are expected on a fresh k3s server and for the SOPS download and the git-gtr link on a fresh Mac.
 
 The k3s server is live: dry-run first, and get the user's approval before executing or rebooting.
 
@@ -99,8 +99,8 @@ Where this repository differs from the imported content:
 `localhost-mac.yml` orchestrates four task modules:
 
 1. **tasks/homebrew.yml** - Homebrew formulae and casks
-2. **tasks/langs.yml** - Language runtime installations (Rust, SDKMAN, pipx)
-3. **tasks/tools.yml** - Additional tools (Krew, SOPS, hishtory, git-worktree-runner, Alacritty terminfo)
+2. **tasks/langs.yml** - Language runtime installations (Rust, SDKMAN)
+3. **tasks/tools.yml** - Additional tools (Krew plugins, SOPS, hishtory, git-worktree-runner, Alacritty terminfo)
 4. **tasks/macos_defaults.yml** - macOS system preferences via `defaults` (screenshot location)
 
 `k3s-mac-mini.yml` imports `tasks/k3s/`:
