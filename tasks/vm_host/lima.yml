@@ -105,27 +105,50 @@
         mode: '0644'
 
   rescue:
-    # 入れ替えの途中で失敗したら、退避した古い版を戻す。
+    # 入れ替えの途中で失敗したら、置きかけた新しい版を消して、退避した古い版を戻す。
+    - name: Check for the moved-aside socket_vmnet
+      become: true
+      ansible.builtin.stat:
+        path: "{{ vm_host_socket_vmnet_tmp.path }}/previous"
+      register: vm_host_socket_vmnet_previous
+      when: vm_host_socket_vmnet_tmp.path is defined
+
+    - name: Remove the failed socket_vmnet
+      become: true
+      ansible.builtin.file:
+        path: /opt/socket_vmnet
+        state: absent
+      when: vm_host_socket_vmnet_previous.stat.exists | default(false)
+
     - name: Restore the previous socket_vmnet
       become: true
       ansible.builtin.command:
         argv: [/bin/mv, "{{ vm_host_socket_vmnet_tmp.path }}/previous", /opt/socket_vmnet]
-        creates: /opt/socket_vmnet
-        removes: "{{ vm_host_socket_vmnet_tmp.path }}/previous"
-      when: vm_host_socket_vmnet_tmp.path is defined
+      changed_when: true
+      when: vm_host_socket_vmnet_previous.stat.exists | default(false)
 
     - name: Fail after restoring socket_vmnet
       ansible.builtin.fail:
         msg: "Installing socket_vmnet {{ socket_vmnet_version }} failed; check which version is in /opt/socket_vmnet and run the playbook again"
 
   always:
-    # 途中で失敗しても、ダウンロードしたファイルを残さない。
+    # 途中で失敗しても、ダウンロードしたファイルを残さない。古い版を戻せなかったときは、退避分ごと残す。
+    - name: Check whether the previous socket_vmnet is still set aside
+      become: true
+      ansible.builtin.stat:
+        path: "{{ vm_host_socket_vmnet_tmp.path }}/previous"
+      register: vm_host_socket_vmnet_leftover
+      when: vm_host_socket_vmnet_tmp.path is defined
+
     - name: Remove the download directory
       become: true
       ansible.builtin.file:
         path: "{{ vm_host_socket_vmnet_tmp.path }}"
         state: absent
-      when: vm_host_socket_vmnet_tmp.path is defined
+      # 成功したときも previous は残っているので、巻き戻しが走って戻せなかったときだけ残す。
+      when: >-
+        vm_host_socket_vmnet_tmp.path is defined
+        and not (vm_host_socket_vmnet_previous is defined and vm_host_socket_vmnet_leftover.stat.exists)
 
 # ユーザーが書き換えられると、Lima が sudo で実行する socket_vmnet を差し替えられてしまう。毎回直す。
 - name: Make /opt/socket_vmnet owned by root
@@ -367,6 +390,21 @@
     and ((ansible_check_mode and (vm_host_socket_vmnet.content | default('') | b64decode | trim) != socket_vmnet_version ~ ' ' ~ socket_vmnet_sha256)
     or vm_host_socket_vmnet_tmp is not skipped or vm_host_sudoers is changed or vm_host_networks is changed)
 
+# plist を書いた後、登録し直す前に失敗しても、次の実行で登録し直せるよう、適用した plist のハッシュを残す。
+- name: Read the checksum of the LaunchDaemon plist
+  ansible.builtin.stat:
+    path: "/Library/LaunchDaemons/io.lima-vm.daemon.{{ vm_host_vm_name }}.plist"
+    checksum_algorithm: sha256
+  register: vm_host_daemon_plist_stat
+
+- name: Read the checksum of the loaded plist
+  become: true
+  ansible.builtin.slurp:
+    src: "/var/db/io.lima-vm.daemon.{{ vm_host_vm_name }}.applied"
+  register: vm_host_daemon_applied
+  # 初回はまだない。
+  failed_when: false
+
 - name: Check whether the LaunchDaemon is loaded
   ansible.builtin.command: "/bin/launchctl print system/io.lima-vm.daemon.{{ vm_host_vm_name }}"
   register: vm_host_daemon_loaded
@@ -374,10 +412,16 @@
   failed_when: false
   check_mode: false
 
+- name: Decide whether to reload the LaunchDaemon
+  ansible.builtin.set_fact:
+    vm_host_daemon_reload: >-
+      {{ vm_host_daemon_plist is changed or vm_host_daemon_loaded.rc != 0
+      or (vm_host_daemon_applied.content | default('') | b64decode | trim) != vm_host_daemon_plist_stat.stat.checksum | default('') }}
+
 # 先に limactl stop でゲストをきちんと止める。正常終了なので KeepAlive は起動し直さない。
 # 登録を先に外すと、launchd が ExitTimeOut の後に強制終了しうる。
 - name: Hand the VM over to the LaunchDaemon
-  when: (vm_host_daemon_plist is changed or vm_host_daemon_loaded.rc != 0) and not ansible_check_mode
+  when: vm_host_daemon_reload | bool and not ansible_check_mode
   block:
     - name: Stop the VM
       ansible.builtin.command: "{{ vm_host_limactl }} stop {{ vm_host_vm_name }}"
@@ -423,12 +467,21 @@
       delay: 3
       changed_when: true
 
+    - name: Record the checksum of the loaded plist
+      become: true
+      ansible.builtin.copy:
+        content: "{{ vm_host_daemon_plist_stat.stat.checksum }}\n"
+        dest: "/var/db/io.lima-vm.daemon.{{ vm_host_vm_name }}.applied"
+        owner: root
+        group: wheel
+        mode: '0644'
+
 # command は --check で動かないため、VM が止まって起動し直す予定をここで示す。
 - name: Report the pending VM restart
   ansible.builtin.debug:
     msg: "The LaunchDaemon will be reloaded; the VM {{ vm_host_vm_name }} will stop and start again"
   changed_when: true
-  when: ansible_check_mode and (vm_host_daemon_plist is changed or vm_host_daemon_loaded.rc != 0)
+  when: ansible_check_mode and vm_host_daemon_reload | bool
 
 - name: Read the VM status
   ansible.builtin.command: "{{ vm_host_limactl }} list --format {{ '{{.Status}}' }} {{ vm_host_vm_name }}"
