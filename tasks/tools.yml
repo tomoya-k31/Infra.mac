@@ -69,8 +69,9 @@
         mode: '0755'
       when: not hishtory_config.stat.exists
 
+    # シェルの設定ファイルに追記させない。config.zsh の読み込みと PATH の設定は dotfiles で行う。
     - name: Install hishtory (offline, self-install)
-      ansible.builtin.command: "/tmp/hishtory-client-{{ hishtory_version }} install --offline"
+      ansible.builtin.command: "/tmp/hishtory-client-{{ hishtory_version }} install --offline --skip-config-modification"
       args:
         creates: "{{ lookup('env', 'HOME') }}/.hishtory/config.zsh"
       when: not hishtory_config.stat.exists

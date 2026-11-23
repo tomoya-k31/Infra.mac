@@ -114,6 +114,7 @@ Helper scripts live in `scripts/`. The target layout and its migration steps are
 ## Key Patterns
 
 - XDG Base Directory paths are used consistently (e.g., `$XDG_DATA_HOME/rustup`)
+- Installers must not edit shell configuration (`~/.zshrc` and so on); dotfiles own it. Pass the flag that turns this off, such as `--no-modify-path`, `rcupdate=false`, or `--skip-config-modification`
 - Removing an entry from `tasks/homebrew.yml` does not uninstall the package
 - `localhost-mac.yml` runs locally (`hosts: localhost`, `connection: local`) and needs no inventory
 

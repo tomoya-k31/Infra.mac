@@ -31,6 +31,19 @@ $ ansible-playbook localhost-mac.yml --diff --check
 $ ansible-playbook localhost-mac.yml
 ```
 
+`localhost-mac.yml` does not edit shell configuration, so a new Mac needs these lines in `~/.zshrc` (or `$ZDOTDIR/.zshrc`); only zsh is covered. Until they are added, hishtory records nothing and `sdk` is not found.
+
+```shell
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export CARGO_HOME="$XDG_DATA_HOME/cargo" RUSTUP_HOME="$XDG_DATA_HOME/rustup"
+export KREW_ROOT="$XDG_DATA_HOME/krew"
+export PATH="$HOME/.local/bin:$CARGO_HOME/bin:$KREW_ROOT/bin:$PATH:$HOME/.hishtory"
+[[ -s "$HOME/.hishtory/config.zsh" ]] && source "$HOME/.hishtory/config.zsh"
+# Keep SDKMAN last
+export SDKMAN_DIR="$XDG_DATA_HOME/sdkman"
+[[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"
+```
+
 ### Lint
 
 ```shell
