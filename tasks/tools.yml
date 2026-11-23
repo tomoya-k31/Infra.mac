@@ -105,23 +105,6 @@
         - item is not skipped
         - item.stdout != item.item.value
 
-- name: Install git-worktree-runner (gtr)
-  block:
-    - name: Clone git-worktree-runner repository
-      ansible.builtin.git:
-        repo: https://github.com/coderabbitai/git-worktree-runner.git
-        dest: "{{ xdg_data_home }}/git-worktree-runner"
-        version: 18c0b1b8ce3ff75726d7832bc8e59b6d21543596 # v3.1.0
-        update: true
-
-    - name: Create symlink for git-gtr
-      ansible.builtin.file:
-        src: "{{ xdg_data_home }}/git-worktree-runner/bin/git-gtr"
-        dest: "{{ lookup('env', 'HOME') }}/.local/bin/git-gtr"
-        state: link
-      # 初回の --check では clone されず、リンク元がない。
-      ignore_errors: "{{ ansible_check_mode }}"
-
 # Alacritty は子プロセスへ渡す TERM を決める際、terminfo データベースに `alacritty`
 # エントリが引けるかを確認し、無ければ `xterm-256color` にフォールバックする。
 # macOS 標準の ncurses (/usr/share/terminfo) は alacritty エントリを持たず、

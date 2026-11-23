@@ -31,12 +31,13 @@ $ ansible-playbook localhost-mac.yml --diff --check
 $ ansible-playbook localhost-mac.yml
 ```
 
-`localhost-mac.yml` does not edit shell configuration, so a new Mac needs these lines in `~/.zshrc` (or `$ZDOTDIR/.zshrc`); only zsh is covered. Until they are added, hishtory records nothing and `sdk` is not found.
+`localhost-mac.yml` does not edit shell configuration, so a new Mac needs these lines in `~/.zshrc` (or `$ZDOTDIR/.zshrc`); only zsh is covered. Put them after `compinit` and other Ctrl+R integrations, and before tool activation such as mise. Until they are added, hishtory records nothing and `sdk` is not found.
 
 ```shell
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export CARGO_HOME="$XDG_DATA_HOME/cargo" RUSTUP_HOME="$XDG_DATA_HOME/rustup"
 export KREW_ROOT="$XDG_DATA_HOME/krew"
+typeset -U path PATH
 export PATH="$HOME/.local/bin:$CARGO_HOME/bin:$KREW_ROOT/bin:$PATH:$HOME/.hishtory"
 [[ -s "$HOME/.hishtory/config.zsh" ]] && source "$HOME/.hishtory/config.zsh"
 # Keep SDKMAN last
@@ -101,7 +102,7 @@ $ KUBECONFIG=~/.kube/config-home kubectl get nodes
 ├── third_party/            # Licenses of the imported AI content
 └── tasks/
     ├── homebrew.yml        # Tasks for Homebrew formulae and casks
-    ├── tools.yml           # Tasks for other tools (Krew plugins, SOPS, hishtory, gtr, Alacritty terminfo)
+    ├── tools.yml           # Tasks for other tools (Krew plugins, SOPS, hishtory, Alacritty terminfo)
     ├── langs.yml           # Tasks for language tools (Rust, SDKMAN)
     ├── macos_defaults.yml  # Tasks for macOS system preferences
     └── k3s/                # Tasks for the k3s server
