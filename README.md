@@ -83,8 +83,8 @@ Complete the one-time setup (SSH key and sudo password in 1Password) first:
 
 ```shell
 # Dry-run, then keep the Mac awake and restart it after a power failure
-$ ansible-playbook -i inventory k3s-vm-host.yml --diff --check
-$ ansible-playbook -i inventory k3s-vm-host.yml
+$ ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/vm-host-become-password.sh --diff --check
+$ ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/vm-host-become-password.sh
 ```
 
 ## Directory Structure
@@ -111,6 +111,7 @@ $ ansible-playbook -i inventory k3s-vm-host.yml
 │   └── k3s-vm-host-setup.md   # One-time setup before running k3s-vm-host.yml
 ├── scripts/
 │   ├── become-password.sh  # Reads the k3s server's sudo password from 1Password
+│   ├── vm-host-become-password.sh  # Reads the VM host's sudo password from 1Password
 │   └── update-ai-content.sh  # Imports third-party AI content at pinned commits (needs Lola)
 ├── third_party/            # Licenses of the imported AI content
 └── tasks/

@@ -26,7 +26,7 @@ This repository is public, and squash merges copy PR text permanently into git h
 - Secrets (passwords, tokens, private keys, kubeconfig): store in 1Password and commit only `op://` references
 - Personal information (real names, email addresses, employer or customer names, absolute home paths): omit, or use placeholders and `~`
 - Identifying values (public IP and MAC addresses, key fingerprints, Claude session URLs): use placeholders such as `<server-ip>`, or read them from `ansible_facts`
-- Accepted exceptions: the k3s server's private IP and host name, the login user that matches the GitHub handle, 1Password vault and item names, and upstream attribution in imported third-party files
+- Accepted exceptions: the k3s server's private IP and host name, the VM host's inventory and SSH host names, the login user that matches the GitHub handle, 1Password vault and item names, and upstream attribution in imported third-party files
 - Before every commit, push, or GitHub post, review the full text, including pasted command output (`--diff`, `ssh -v`, logs). Report findings to the user by location, with the value masked
 
 ## Commands
@@ -41,8 +41,8 @@ ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/be
 ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh
 
 # VM host (M4, macOS): dry-run, then execute (may prompt for 1Password approval)
-ansible-playbook -i inventory k3s-vm-host.yml --diff --check
-ansible-playbook -i inventory k3s-vm-host.yml
+ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/vm-host-become-password.sh --diff --check
+ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/vm-host-become-password.sh
 ```
 
 ```shell
@@ -130,7 +130,7 @@ Where this repository differs from the imported content:
 2. **kubeconfig.yml** - admin kubeconfig at `~/.kube/config-home` on the local Mac only; on the server use `sudo k3s kubectl`
 3. **upgrade.yml**, **console.yml**, **kiosk.yml** - opt-in parts tagged `never`; add them with `--tags all,upgrade,console,kiosk`
 
-`k3s-vm-host.yml` runs on the `vm_hosts` group and imports `tasks/vm_host/`. Its sudo password comes from 1Password through `ansible_become_password` in `inventory/host_vars/mac-mini-m4.yml`, so it needs no `--become-password-file`. Ansible may evaluate the lookup for each task that uses `become`, and each evaluation can ask for 1Password approval; when the VM host gains many such tasks, switch to a `--become-password-file` script like the k3s server's.
+`k3s-vm-host.yml` runs on the `vm_hosts` group and imports `tasks/vm_host/`. Its sudo password comes from `scripts/vm-host-become-password.sh` (see Key Patterns, VM host).
 
 Helper scripts live in `scripts/`. The target layout and its migration steps are in `docs/ansible-improvement-plan.md`; follow it when adding Macs or k3s nodes.
 
@@ -151,3 +151,8 @@ Helper scripts live in `scripts/`. The target layout and its migration steps are
 - `k3s_flannel_backend` is `host-gw`: every node must be on the same L2 network, and every server must use the same value
 - `node-ip` is pinned to the host's IPv4 address: k3s exits when an auto-detected node IP changes, such as when IPv6 appears after boot
 - Reboots are manual: the cluster is a single node
+
+### VM host
+
+- `scripts/vm-host-become-password.sh` must stay executable; otherwise Ansible uses its text as the password. Keep its name ending in `become-password.sh`, so that the ask rule in `.claude/settings.json` covers it
+- The VM host is not a k3s node: keep it out of the `k3s` group and out of `tasks/k3s/`

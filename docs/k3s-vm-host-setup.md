@@ -8,7 +8,7 @@
 |---|---|---|
 | SSH 秘密鍵 | 1Password `Dev` / `k3s-mac-mini-m4-ssh` | 1Password SSH Agent 経由（ディスクに出さない） |
 | SSH 公開鍵 | `~/.ssh/k3s-mac-mini-m4.pub` | 使う鍵の指定と M4 への登録 |
-| sudo パスワード | 1Password `Dev` / `k3s-mac-mini-m4` | `inventory/host_vars/mac-mini-m4.yml` が `op read` で読む |
+| sudo パスワード | 1Password `Dev` / `k3s-mac-mini-m4` | `scripts/vm-host-become-password.sh` |
 
 ## 前提
 
@@ -54,6 +54,8 @@ ssh-keygen -lf ~/.ssh/k3s-mac-mini-m4.pub
 
 ## 3. 公開鍵を M4 に登録する
 
+一度だけ実行します。`-f` を付けているため、繰り返すと同じ鍵が重複して登録されます。
+
 mDNS の名前には LAN の別の機器も応答できるため、初回接続でホスト鍵の確認を求められたら、M4 本体の画面で次のコマンドを実行し、表示される指紋と一致することを確かめてから `yes` と答えます。一致しなければ中止します。
 
 ```shell
@@ -90,8 +92,21 @@ unset SUDO_PW
 op read "op://Dev/k3s-mac-mini-m4/password" | ssh k3s-mac-mini-m4 'sudo -k -S -p "" true && echo "sudo OK"'
 ```
 
+## 5. Ansible の疎通確認
+
+`pong` と、`uid=0(root)` を含む行が出れば準備完了です。Command Line Tools の Python と、1Password からの sudo パスワードの取得も、ここで確かめられます。
+
+```shell
+ansible mac-mini-m4 -i inventory -m ping
+```
+
+```shell
+ansible mac-mini-m4 -i inventory -b --become-password-file scripts/vm-host-become-password.sh -m command -a id
+```
+
 ## 補足
 
+- `scripts/vm-host-become-password.sh` は実行ビットが必須です。ないと、スクリプトの本文がパスワードとして扱われます
 - 停電から復旧した macOS はログイン画面で止まります。VM はログインなしで動く LaunchDaemon で起動します
 - FileVault を有効にすると、停電後は解除するまで VM が起動しません。Apple シリコンの macOS 26 以降は SSH で解除できますが、パスワード認証だけです。そのため SSH のパスワード認証は止めないでください。LAN からパスワードを試されうるので、ログインパスワードは推測されにくいものにします
 - 「リモートユーザにフルディスクアクセスを許可」は不要です

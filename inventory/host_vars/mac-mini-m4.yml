@@ -1,4 +1,0 @@
----
-# sudo パスワードは 1Password から読む。タスクごとに評価されることがあり、そのたびに 1Password の承認を求められうる。
-# pipe は出力の末尾の空白を削るため、末尾が空白のパスワードは使えない。
-ansible_become_password: "{{ lookup('ansible.builtin.pipe', 'op read op://Dev/k3s-mac-mini-m4/password') }}"

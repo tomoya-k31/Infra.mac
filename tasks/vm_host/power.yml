@@ -4,15 +4,22 @@
 
 - name: Configure power settings
   vars:
-    # 電源の区分（AC、UPS など）ごとに行があるため、全区分が期待値のときだけ設定済みとみなす。
+    # 電源の区分（AC、UPS など）ごとに値がある。この Mac が対応しないキーは pmset が無視し、行も出ないため、
+    # どの区分にも違う値の行がなく、AC Power の区分に両方の値があれば設定済みとみなす。
+    # 常時動かすホストなので、UPS などの区分も pmset -a で同じ値にそろえる。
+    # 見出しがなければ出力全体で判定する（macOS 26.6 では「AC Power:」の見出しがある）。
+    # AC の区分は、次の「〜 Power:」の見出しまでとする。値の行に「 Power:」は現れない（macOS 26.6 で確認）。
     # Jinja の文字列はエスケープを解釈するので、正規表現にバックスラッシュを使わない。
     # pmset はキーと値の間をスペースで揃える（macOS 26.6 で確認。タブは使わない）。
     # vm_host_pmset を読み直すと、この値も読み直した結果で評価される。
+    vm_host_pmset_ac: >-
+      {{ vm_host_pmset.stdout.split('AC Power:')[1].split(' Power:')[0]
+      if 'AC Power:' in vm_host_pmset.stdout else vm_host_pmset.stdout }}
     vm_host_power_ok: >-
       {{ vm_host_pmset.stdout is not regex('(?m)^ *sleep +[1-9]')
       and vm_host_pmset.stdout is not regex('(?m)^ *autorestart +0')
-      and vm_host_pmset.stdout is regex('(?m)^ *sleep +0')
-      and vm_host_pmset.stdout is regex('(?m)^ *autorestart +1') }}
+      and vm_host_pmset_ac is regex('(?m)^ *sleep +0( |$)')
+      and vm_host_pmset_ac is regex('(?m)^ *autorestart +1( |$)') }}
   block:
     - name: Read power settings
       ansible.builtin.command: pmset -g custom
