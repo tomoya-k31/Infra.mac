@@ -3,3 +3,9 @@
 ansible_user: tomoya-k31
 # Command Line Tools の Python。Homebrew や mise の Python は対象にしない。
 ansible_python_interpreter: /usr/bin/python3
+# Homebrew の limactl。非対話の SSH の PATH には /opt/homebrew/bin がない。
+vm_host_limactl: /opt/homebrew/bin/limactl
+# Lima が root で実行するため、Homebrew 版ではなく公式のリリースを root 所有で置く。
+# 版とハッシュは一緒に更新する（SHA256SUMS の arm64 の行）。
+socket_vmnet_version: "v1.2.2"
+socket_vmnet_sha256: c7bf62308fbcfdc29bdfb8373c9b1951f7ac2396446e4390919796a94972e6dc

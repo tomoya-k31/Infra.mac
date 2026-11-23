@@ -14,6 +14,7 @@
 
 - 手元の Mac は [k3s-mac-mini-setup.md の前提](k3s-mac-mini-setup.md#前提) と同じ（Ansible、1Password アプリと CLI、`jq`、SSH Agent と CLI 連携）
 - M4 本体で「システム設定 → 一般 → 共有 → リモートログイン」をオンにし、自分のユーザーだけに許可している
+- Homebrew を導入済み（`/opt/homebrew`）。Lima を Homebrew で入れる
 - Command Line Tools を導入済み（`xcode-select -p` でパスが出る）。Ansible は `/usr/bin/python3` を使い、未導入だとこれが動かない。未導入なら M4 で `xcode-select --install`
 - 有線 LAN でつないでいる（VM をブリッジ接続で LAN に参加させるため）
 - M4 本体の IP は固定しない。mDNS の名前（以下 `<m4-hostname>.local`。M4 の「システム設定 → 一般 → 共有」の下部に表示される）で接続する

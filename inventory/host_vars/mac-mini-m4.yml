@@ -1,0 +1,10 @@
+---
+# M4（16GB、10 コア）のうち、半分を k3s agent の VM に渡す。
+vm_host_vm_name: k3s-agent
+vm_host_vm_cpus: 5
+vm_host_vm_memory: 8GiB
+vm_host_vm_disk: 64GiB
+# ブリッジ接続する有線の端子と、VM の固定 IP（ルーターの DHCP の配布範囲外）。
+vm_host_bridge_interface: en0
+vm_host_vm_ip: 192.168.11.201
+vm_host_vm_prefix: 24
