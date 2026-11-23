@@ -40,11 +40,13 @@ server に ssh で入り、表示されたディレクトリを `d` に入れて
 ```shell
 d=<表示されたディレクトリ>
 sudo bash -eu -c '
-d=$1
 # 貼り付けを誤ったまま root で消さないよう、mktemp が作ったディレクトリであることを先に確かめる。
-case $d in /tmp/tmp.*) ;; *) echo "unexpected d: $d" >&2; exit 1;; esac
+# .. やシンボリックリンクで別の場所を指さないよう、正規化してから /tmp の直下の tmp.* に限る。
+test ! -L "$1"
+d=$(realpath -e -- "$1")
+test "$(dirname "$d")" = /tmp
+case $(basename "$d") in tmp.*) ;; *) echo "unexpected d: $d" >&2; exit 1;; esac
 test -d "$d"
-test ! -L "$d"
 test "$(stat -c %U "$d")" = "$SUDO_USER"
 trap '\''rm -rf "$d"'\'' EXIT
 s=/var/lib/rancher/k3s/server
