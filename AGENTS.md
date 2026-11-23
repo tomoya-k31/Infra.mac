@@ -36,8 +36,8 @@ ansible-playbook localhost-mac.yml --diff --check
 ansible-playbook localhost-mac.yml
 
 # k3s server: dry-run, then execute (may prompt for 1Password approval)
-ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file scripts/become-password.sh --diff --check
-ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file scripts/become-password.sh
+ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh --diff --check
+ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh
 ```
 
 ```shell
@@ -80,7 +80,7 @@ Where this repository differs from the imported content:
 - No staging inventory, Molecule, role README, or platform variable files; the hosts are listed under Overview
 - `ignore_errors: "{{ ansible_check_mode }}"` is accepted for tasks that cannot work on a first dry-run
 - Keep existing key order and quoting; do not reformat code that `ansible-lint` accepts
-- Do not apply automatic fixes from a review to `tasks/k3s/`, `k3s-mac-mini.yml`, or `inventory.yml` without the user's approval
+- Do not apply automatic fixes from a review to `tasks/k3s/`, `k3s-mac-mini.yml`, or `inventory/` without the user's approval
 - For review rules, use `.claude/skills/write-content/reference.md` instead of fetching them from the web
 - Install tools with Homebrew, mise, or `uv`, not `pip install` (Lola is the exception)
 - `ansible-markdown-docs`: use `curl -sL --proto-redir '=https'` with the URL quoted, because docs.ansible.com redirects `/ansible/latest/`; check that the final URL is still on docs.ansible.com
@@ -103,7 +103,7 @@ Where this repository differs from the imported content:
 3. **tasks/tools.yml** - Additional tools (Krew plugins, SOPS, hishtory, Alacritty terminfo)
 4. **tasks/macos_defaults.yml** - macOS system preferences via `defaults` (screenshot location)
 
-`k3s-mac-mini.yml` imports `tasks/k3s/`:
+`k3s-mac-mini.yml` runs on the `k3s_server` group and imports `tasks/k3s/`. Variables live in `inventory/`: `group_vars/k3s.yml` for values every node shares, including the k3s version (agents must not run a newer version than the servers), `group_vars/k3s_server.yml` for values that must match across servers, and `host_vars/` for one host:
 
 1. **server.yml** - k3s installation, config, and readiness check; restarts the live cluster when the version, flannel backend, or node IP changes
 2. **kubeconfig.yml** - admin kubeconfig at `~/.kube/config-home` on the local Mac only; on the server use `sudo k3s kubectl`

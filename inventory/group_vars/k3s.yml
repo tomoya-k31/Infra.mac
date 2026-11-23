@@ -1,0 +1,9 @@
+---
+# k3s の全ノードに共通の値
+ansible_user: tomoya-k31
+# Ubuntu 26.04 既定の sudo-rs はプロンプトが異なり、ansible-core 2.20.0 では
+# become がタイムアウトしうるため、従来の sudo を使う。
+ansible_become_exe: sudo.ws
+k3s_version: "v1.37.2+k3s1"
+# k3s_version のタグの install.sh の SHA-256。バージョンと一緒に更新する。
+k3s_installer_sha256: ed01f89fd977bf20ac1516bbebf8370bf3ddbaa55dac8aba610956a4c78cc00b

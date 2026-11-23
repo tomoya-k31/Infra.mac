@@ -1,6 +1,6 @@
 # Ansible 構成の改善プラン
 
-2026-11 時点の調査に基づく提案です。段階 0 と、段階 2 のうち Mac 用タスクの指摘の修正だけ実施済みで、段階 1 以降は着手前に承認を得ます。
+2026-11 時点の調査に基づく提案です。段階 0、段階 1、段階 2 のうち Mac 用タスクの指摘の修正を実施済みです。残りは着手前に承認を得ます。
 
 ## 対象と方針
 
@@ -8,7 +8,7 @@
 |---|---|---|
 | 開発用 Mac | `localhost-mac.yml`（全台同じ内容） | 複数台。用途ごとに差分を持つ |
 | k3s サーバー | Mac mini 2018、単一ノード、SQLite | 稼働を続ける |
-| 追加の k3s ノード | なし | agent から始める |
+| 追加の k3s ノード | なし | M4 Mac mini 上の Linux VM を agent にする |
 
 公式の [Tips](https://docs.ansible.com/ansible/latest/tips_tricks/ansible_tips_tricks.html) は「Keep it simple」、[Red Hat CoP](https://redhat-cop.github.io/automation-good-practices/) は規則を厳格に適用しすぎないよう求めています。個人の小さなリポジトリなので、必要になった段階で次へ進みます。
 
@@ -19,8 +19,7 @@
 | 優先 | 課題 | 場所 |
 |---|---|---|
 | 高 | クラスタのバックアップがない（SQLite と server token） | k3s |
-| 高 | 変数が play にあり、ノードの追加時に共有できない | `k3s-mac-mini.yml:8` |
-| 高 | `hosts: k3s` が全ノードに server を入れる。agent を区別できない | `k3s-mac-mini.yml`、`inventory.yml` |
+| 高 | agent 用の play とタスクがない | `k3s-mac-mini.yml` |
 | 高 | kubeconfig をホストごとに同じファイルへ書く。複数台では最後のノードで上書きされる | `tasks/k3s/kubeconfig.yml` |
 | 高 | `config.yaml` が 0644。join 用の token を書けない | `tasks/k3s/server.yml` |
 | 中 | Mac ごとの差分を表せない | `tasks/homebrew.yml` |
@@ -54,7 +53,7 @@ tasks/                       # Mac 用。ロールにしない
 
 `AGENTS.md`、スキル、保護設定、Dependabot、CI。
 
-### 段階 1: インベントリと変数の分離
+### 段階 1: インベントリと変数の分離（実施済み）
 
 - `inventory/` に分け、play の `vars` を `group_vars` と `host_vars` へ移す。Vault のファイルは作らない
 - `k3s-mac-mini.yml` の `-i` と、AGENTS.md、README、docs のコマンドを更新する
@@ -78,6 +77,7 @@ tasks/                       # Mac 用。ロールにしない
 - 既存のタスクを `k3s_common`、`k3s_server` に分け、`k3s_agent` を足す。既存サーバーの dry-run が `changed=0` であることを先に確認する
 - join には server token ではなく agent token を使う。server token は管理者相当（[token](https://docs.k3s.io/cli/token)）。1Password に置き、`no_log` と 0600 にする
 - kubeconfig は先頭の server でだけ書く。`console` と `kiosk` は画面のあるホストに限る
+- M4 の VM は arm64 で、ブリッジ接続（socket_vmnet の bridged）にする。NAT では host-gw の経路が届かない。k9s の取得は amd64 固定なので、kiosk は 2018 に限る
 - ホスト名は一意、同じ L2（host-gw の条件）、10250/tcp を全ノード間、6443/tcp を agent から server へ（[要件](https://docs.k3s.io/installation/requirements)）
 - 更新は server を先に 1 台ずつ、次に agent。マイナーバージョンは飛ばさない（[手動更新](https://docs.k3s.io/upgrades/manual)）
 - 危険: 中。戻し方: ノードを drain して削除する

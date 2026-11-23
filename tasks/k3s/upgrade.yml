@@ -14,5 +14,5 @@
 
 - name: Warn if a reboot is required
   ansible.builtin.debug:
-    msg: "Reboot required: ansible k3s -i inventory.yml -b --become-password-file scripts/become-password.sh -m reboot"
+    msg: "Reboot required: ansible {{ inventory_hostname }} -i inventory -b --become-password-file scripts/become-password.sh -m reboot"
   when: reboot_required.stat.exists

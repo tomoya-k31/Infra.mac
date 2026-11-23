@@ -1,0 +1,4 @@
+---
+# server 間で一致させる値
+# 全ノードが同じ L2 にあることが条件。
+k3s_flannel_backend: host-gw

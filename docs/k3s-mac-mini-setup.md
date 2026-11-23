@@ -119,7 +119,7 @@ op read "op://Dev/k3s-mac-mini-2018/password" | ssh 192.168.11.200 'sudo.ws -k -
 ## 6. Ansible の疎通確認
 
 ```shell
-ansible k3s -i inventory.yml -m ping
+ansible k3s -i inventory -m ping
 ```
 
 `pong` が返れば準備完了です。以降は [README の Usage](../README.md#usage) を参照してください。
@@ -132,7 +132,7 @@ ansible k3s -i inventory.yml -m ping
 
 Ubuntu 26.04 の既定の sudo（sudo-rs）はパスワードプロンプトの形式が異なり、ansible-core 2.20.0 では
 `become` がタイムアウトする可能性があります（[ansible/ansible#85837](https://github.com/ansible/ansible/issues/85837)）。
-そのため `inventory.yml` で `ansible_become_exe: sudo.ws` を指定しています。
+そのため `inventory/group_vars/k3s.yml` で `ansible_become_exe: sudo.ws` を指定しています。
 
 ### scripts/become-password.sh
 
