@@ -37,12 +37,12 @@
   register: k3s_agent_running
   delegate_to: "{{ groups['k3s_server'][0] }}"
   # 未参加のとき（NotFound）だけを未導入とみなす。API の一時的な不調ですぐに入れ直さない。
-  until: k3s_agent_running.rc == 0 or 'NotFound' in k3s_agent_running.stderr
+  until: k3s_agent_running.rc == 0 or 'NotFound' in k3s_agent_running.stderr or ansible_check_mode
   retries: 12
   delay: 5
   changed_when: false
-  # API が止まり続けているときは、入れ直さずに止める。
-  failed_when: k3s_agent_running.rc != 0 and 'NotFound' not in k3s_agent_running.stderr
+  # API が止まり続けているときは、入れ直さずに止める。初回の --check では server に k3s がまだない。
+  failed_when: k3s_agent_running.rc != 0 and 'NotFound' not in k3s_agent_running.stderr and not ansible_check_mode
   check_mode: false
 
 # --limit k3s_agent などで server の play を飛ばしても、server より新しい版にせず、server token も受け取らない。
@@ -92,7 +92,8 @@
     that: "'::node:' in (k3s_agent_token.content | b64decode)"
     fail_msg: "/var/lib/rancher/k3s/server/agent-token is not an agent token; run the server play first"
   no_log: true
-  when: k3s_agent_token.content is defined
+  # --check では server の play が agent token を実際には設定しないため、移行の dry-run でも止めない。
+  when: k3s_agent_token.content is defined and not ansible_check_mode
 
 - name: Create the k3s config directory
   become: true

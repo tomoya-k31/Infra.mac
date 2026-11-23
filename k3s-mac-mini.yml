@@ -48,8 +48,13 @@
   hosts: k3s_agent
   # 更新や再起動は 1 台ずつ。
   serial: 1
+  # --tags backup だけのときに VM へ接続しないよう、事実は下のタスクで集める。
+  gather_facts: false
 
   tasks:
+    - name: Gather facts
+      ansible.builtin.setup:
+      tags: [upgrade]
     - name: Include upgrade tasks
       ansible.builtin.import_tasks: tasks/k3s/upgrade.yml
       tags: [never, upgrade]
