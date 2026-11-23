@@ -43,7 +43,9 @@ sudo bash -eu -c '
 d=$1
 # 貼り付けを誤ったまま root で消さないよう、mktemp が作ったディレクトリであることを先に確かめる。
 case $d in /tmp/tmp.*) ;; *) echo "unexpected d: $d" >&2; exit 1;; esac
-test -d "$d" && test ! -L "$d" && test "$(stat -c %U "$d")" = "$SUDO_USER"
+test -d "$d"
+test ! -L "$d"
+test "$(stat -c %U "$d")" = "$SUDO_USER"
 trap '\''rm -rf "$d"'\'' EXIT
 s=/var/lib/rancher/k3s/server
 n=/etc/rancher/node

@@ -126,7 +126,8 @@
         executable: /bin/bash
       register: k3s_backup_listing
       changed_when: false
-      failed_when: k3s_backup_listing.stdout_lines | sort != ['password', 'state.db', 'token']
+      # 一覧が合っていても、復号や gzip の CRC のエラーは終了コードに出る。
+      failed_when: k3s_backup_listing.rc != 0 or k3s_backup_listing.stdout_lines | sort != ['password', 'state.db', 'token']
       delegate_to: localhost
 
     - name: Give the backup file its final name
