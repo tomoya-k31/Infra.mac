@@ -8,3 +8,5 @@
   tasks:
     - name: Include power tasks
       ansible.builtin.import_tasks: tasks/vm_host/power.yml
+    - name: Include Lima tasks
+      ansible.builtin.import_tasks: tasks/vm_host/lima.yml

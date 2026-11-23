@@ -26,7 +26,7 @@ This repository is public, and squash merges copy PR text permanently into git h
 - Secrets (passwords, tokens, private keys, kubeconfig): store in 1Password and commit only `op://` references
 - Personal information (real names, email addresses, employer or customer names, absolute home paths): omit, or use placeholders and `~`
 - Identifying values (public IP and MAC addresses, key fingerprints, Claude session URLs): use placeholders such as `<server-ip>`, or read them from `ansible_facts`
-- Accepted exceptions: the k3s server's private IP and host name, the VM host's inventory and SSH host names, the login user that matches the GitHub handle, 1Password vault and item names, and upstream attribution in imported third-party files
+- Accepted exceptions: the k3s nodes' private IPs (including the agent VM) and the k3s server's host name, the VM host's inventory and SSH host names, the login user that matches the GitHub handle, 1Password vault and item names, and upstream attribution in imported third-party files
 - Before every commit, push, or GitHub post, review the full text, including pasted command output (`--diff`, `ssh -v`, logs). Report findings to the user by location, with the value masked
 
 ## Commands
@@ -130,7 +130,7 @@ Where this repository differs from the imported content:
 2. **kubeconfig.yml** - admin kubeconfig at `~/.kube/config-home` on the local Mac only; on the server use `sudo k3s kubectl`
 3. **upgrade.yml**, **console.yml**, **kiosk.yml** - opt-in parts tagged `never`; add them with `--tags all,upgrade,console,kiosk`
 
-`k3s-vm-host.yml` runs on the `vm_hosts` group and imports `tasks/vm_host/`. Its sudo password comes from `scripts/vm-host-become-password.sh` (see Key Patterns, VM host).
+`k3s-vm-host.yml` runs on the `vm_hosts` group and imports `tasks/vm_host/`: `power.yml` (no sleep, restart after a power failure) and `lima.yml` (Lima, socket_vmnet, and the k3s agent VM bridged to the LAN at a fixed IP, started at boot by a LaunchDaemon). Its sudo password comes from `scripts/vm-host-become-password.sh` (see Key Patterns, VM host).
 
 Helper scripts live in `scripts/`. The target layout and its migration steps are in `docs/ansible-improvement-plan.md`; follow it when adding Macs or k3s nodes.
 
@@ -156,3 +156,8 @@ Helper scripts live in `scripts/`. The target layout and its migration steps are
 
 - `scripts/vm-host-become-password.sh` must stay executable; otherwise Ansible uses its text as the password. Keep its name ending in `become-password.sh`, so that the ask rule in `.claude/settings.json` covers it
 - The VM host is not a k3s node: keep it out of the `k3s` group and out of `tasks/k3s/`
+- `socket_vmnet_version` and `socket_vmnet_sha256` change together
+- `socket_vmnet` runs as root through sudoers, so it lives in root-owned `/opt/socket_vmnet` from the official release, not from Homebrew
+- Lima reads the VM definition only when it creates the VM; after changing `vm_host_vm_*` or the definition, recreate it: `limactl stop`, `sudo launchctl bootout system/io.lima-vm.daemon.<name>`, `limactl delete`, then run the playbook
+- A running socket_vmnet keeps its interface and binary: after changing `vm_host_bridge_interface` or `socket_vmnet_version`, reboot the VM host. Start the VM only through the LaunchDaemon, not with `limactl start`
+- `reboot` inside the VM restarts it in place, but `poweroff` leaves it stopped until the next playbook run (`launchctl kickstart`) or a reboot of the VM host

@@ -82,7 +82,8 @@ Complete the one-time setup (SSH key and sudo password in 1Password) first:
 [docs/k3s-vm-host-setup.md](docs/k3s-vm-host-setup.md)
 
 ```shell
-# Dry-run, then keep the Mac awake and restart it after a power failure
+# Dry-run, then keep the Mac awake, restart it after a power failure,
+# and run the k3s agent VM (Lima, bridged to the LAN at a fixed IP, started at boot)
 $ ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/vm-host-become-password.sh --diff --check
 $ ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/vm-host-become-password.sh
 ```

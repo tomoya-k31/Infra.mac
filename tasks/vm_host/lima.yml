@@ -1,0 +1,468 @@
+---
+# Lima と、LAN にブリッジ接続する k3s agent の VM。
+
+- name: Install Lima
+  community.general.homebrew:
+    name: lima
+    state: present
+
+# 古い Lima が入っていても present では更新されない。VM の定義と sudoers は 2.3.0 に合わせている。
+- name: Read the Lima version
+  ansible.builtin.command: "{{ vm_host_limactl }} --version"
+  register: vm_host_lima_version
+  changed_when: false
+  check_mode: false
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Verify the Lima version
+  ansible.builtin.assert:
+    that: (vm_host_lima_version.stdout.split() | last) is version('2.3.0', '>=')
+    fail_msg: "Lima {{ vm_host_lima_version.stdout }} is older than 2.3.0; run brew upgrade lima on the VM host"
+  when: vm_host_lima_version.stdout is defined and vm_host_lima_version.stdout | length > 0
+
+- name: Read the installed socket_vmnet version
+  become: true
+  ansible.builtin.slurp:
+    src: /opt/socket_vmnet/.installed-version
+  register: vm_host_socket_vmnet
+  # 未導入のときはファイルがない。
+  failed_when: false
+
+# Lima は socket_vmnet と、その親ディレクトリすべてが root 所有で、他人が書けないことを求める。
+- name: Make /opt owned by root
+  become: true
+  ansible.builtin.file:
+    path: /opt
+    state: directory
+    owner: root
+    group: wheel
+    mode: '0755'
+
+# 版とハッシュの両方を記録し、ハッシュだけを直したときも入れ直す。
+# tempfile は --check で動かないため、dry-run では予定だけを示す。
+- name: Report the pending socket_vmnet install
+  ansible.builtin.debug:
+    msg: "socket_vmnet {{ socket_vmnet_version }} would be installed to /opt/socket_vmnet"
+  changed_when: true
+  when: ansible_check_mode and (vm_host_socket_vmnet.content | default('') | b64decode | trim) != socket_vmnet_version ~ ' ' ~ socket_vmnet_sha256
+
+- name: Install socket_vmnet
+  when: not ansible_check_mode and (vm_host_socket_vmnet.content | default('') | b64decode | trim) != socket_vmnet_version ~ ' ' ~ socket_vmnet_sha256
+  block:
+    # ユーザーが書ける場所に置くと、検証から展開までの間に差し替えられる。root だけが入れる場所で扱う。
+    - name: Create a root-only download directory
+      become: true
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: socket_vmnet.
+      register: vm_host_socket_vmnet_tmp
+
+    - name: Download socket_vmnet
+      become: true
+      ansible.builtin.get_url:
+        url: "https://github.com/lima-vm/socket_vmnet/releases/download/{{ socket_vmnet_version }}/socket_vmnet-{{ socket_vmnet_version[1:] }}-arm64.tar.gz"
+        dest: "{{ vm_host_socket_vmnet_tmp.path }}/socket_vmnet.tar.gz"
+        checksum: "sha256:{{ socket_vmnet_sha256 }}"
+        mode: '0600'
+
+    # unarchive は macOS の bsdtar で動かないため tar を使う。アーカイブ内のパスは ./opt/socket_vmnet。
+    # 展開に失敗しても今の socket_vmnet を残すため、一時ディレクトリに展開してから入れ替える。
+    - name: Extract socket_vmnet
+      become: true
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/tar
+          - -xzf
+          - "{{ vm_host_socket_vmnet_tmp.path }}/socket_vmnet.tar.gz"
+          - --no-same-owner
+          - -C
+          - "{{ vm_host_socket_vmnet_tmp.path }}"
+          - ./opt/socket_vmnet
+      changed_when: true
+
+    # 古い版は一時ディレクトリへ退避して、後片付けで消す。socket_vmnet がない時間を短くする。
+    # 動いている socket_vmnet は、退避しても再起動まで古いまま動く。
+    - name: Move the previous socket_vmnet aside
+      become: true
+      ansible.builtin.command:
+        argv: [/bin/mv, /opt/socket_vmnet, "{{ vm_host_socket_vmnet_tmp.path }}/previous"]
+        removes: /opt/socket_vmnet
+
+    - name: Move socket_vmnet into /opt
+      become: true
+      ansible.builtin.command:
+        argv: [/bin/mv, "{{ vm_host_socket_vmnet_tmp.path }}/opt/socket_vmnet", /opt/socket_vmnet]
+      changed_when: true
+
+    # 展開した版を記録し、次回からは同じ版を展開しない。
+    - name: Record the socket_vmnet version
+      become: true
+      ansible.builtin.copy:
+        content: "{{ socket_vmnet_version }} {{ socket_vmnet_sha256 }}\n"
+        dest: /opt/socket_vmnet/.installed-version
+        owner: root
+        group: wheel
+        mode: '0644'
+
+  rescue:
+    # 入れ替えの途中で失敗したら、退避した古い版を戻す。
+    - name: Restore the previous socket_vmnet
+      become: true
+      ansible.builtin.command:
+        argv: [/bin/mv, "{{ vm_host_socket_vmnet_tmp.path }}/previous", /opt/socket_vmnet]
+        creates: /opt/socket_vmnet
+        removes: "{{ vm_host_socket_vmnet_tmp.path }}/previous"
+      when: vm_host_socket_vmnet_tmp.path is defined
+
+    - name: Fail after restoring socket_vmnet
+      ansible.builtin.fail:
+        msg: "Installing socket_vmnet {{ socket_vmnet_version }} failed; check which version is in /opt/socket_vmnet and run the playbook again"
+
+  always:
+    # 途中で失敗しても、ダウンロードしたファイルを残さない。
+    - name: Remove the download directory
+      become: true
+      ansible.builtin.file:
+        path: "{{ vm_host_socket_vmnet_tmp.path }}"
+        state: absent
+      when: vm_host_socket_vmnet_tmp.path is defined
+
+# ユーザーが書き換えられると、Lima が sudo で実行する socket_vmnet を差し替えられてしまう。毎回直す。
+- name: Make /opt/socket_vmnet owned by root
+  become: true
+  ansible.builtin.file:
+    path: /opt/socket_vmnet
+    owner: root
+    group: wheel
+    mode: go-w
+    recurse: true
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Create the Lima config directory
+  ansible.builtin.file:
+    path: ~/.lima/_config
+    state: directory
+    mode: '0755'
+
+# 一度作ると Lima は書き換えない。sudoers はこの内容から作る。
+- name: Configure the bridged network for Lima
+  register: vm_host_networks
+  ansible.builtin.copy:
+    dest: ~/.lima/_config/networks.yaml
+    mode: '0644'
+    content: |
+      paths:
+        socketVMNet: /opt/socket_vmnet/bin/socket_vmnet
+        varRun: /private/var/run/lima
+        sudoers: /private/etc/sudoers.d/lima
+      group: admin
+      networks:
+        bridged:
+          mode: bridged
+          interface: {{ vm_host_bridge_interface }}
+
+# limactl sudoers の出力をそのまま入れると、ユーザーが書き換えられる limactl が root の sudoers を決めてしまう。
+# 同じ内容をここに固定し、Lima が期待する内容と一致するかを limactl sudoers --check で確かめる。
+- name: Install the sudoers rules for socket_vmnet
+  become: true
+  register: vm_host_sudoers
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/lima
+    owner: root
+    group: wheel
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+    content: |
+      %admin ALL=(root:wheel) NOPASSWD:NOSETENV: /bin/mkdir -m 775 -p /private/var/run/lima
+
+      # Manage "bridged" network daemons
+
+      %admin ALL=(root:wheel) NOPASSWD:NOSETENV: \
+          /opt/socket_vmnet/bin/socket_vmnet --socket-group=admin --vmnet-mode=bridged --vmnet-interface={{ vm_host_bridge_interface }} --pidfile=/private/var/run/lima/bridged_socket_vmnet.pid /private/var/run/lima/socket_vmnet.bridged, \
+          /usr/bin/pkill -F/private/var/run/lima/bridged_socket_vmnet.pid
+
+- name: Read the installed sudoers rules
+  become: true
+  ansible.builtin.slurp:
+    src: /etc/sudoers.d/lima
+  register: vm_host_sudoers_installed
+  ignore_errors: "{{ ansible_check_mode }}"
+
+# Lima を更新して期待する内容が変わったら失敗する。limactl sudoers の出力と見比べて、上を直す。
+# ファイルは root しか読めないため、内容を標準入力で渡す。
+- name: Verify the sudoers rules match what Lima expects
+  ansible.builtin.command:
+    argv: ["{{ vm_host_limactl }}", sudoers, --check, /dev/stdin]
+    stdin: "{{ vm_host_sudoers_installed.content | b64decode }}"
+    stdin_add_newline: false
+  changed_when: false
+  check_mode: false
+  # --check で内容を変えるときは、まだ古いファイルしかないので照合しない。
+  # networks.yaml がないと、limactl が既定の内容で作ってしまう。
+  when: >-
+    vm_host_sudoers_installed.content is defined
+    and not (ansible_check_mode and (vm_host_sudoers is changed or vm_host_networks is changed))
+
+- name: Create the VM config directory
+  ansible.builtin.file:
+    path: ~/.config/lima
+    state: directory
+    mode: '0755'
+
+# Lima は作成時にこの内容を取り込む。作成後に変えても反映されないので、変えたら VM を作り直す。
+- name: Write the VM definition
+  register: vm_host_vm_definition
+  ansible.builtin.copy:
+    dest: "~/.config/lima/{{ vm_host_vm_name }}.yaml"
+    mode: '0644'
+    content: |
+      minimumLimaVersion: 2.3.0
+      base:
+        - template:_images/ubuntu-26.04
+      vmType: vz
+      arch: aarch64
+      cpus: {{ vm_host_vm_cpus }}
+      memory: {{ vm_host_vm_memory }}
+      disk: {{ vm_host_vm_disk }}
+      # ホストのディレクトリは共有しない。containerd は k3s が持つ。
+      mounts: []
+      containerd:
+        system: false
+        user: false
+      networks:
+        - lima: bridged
+          interface: lima0
+      provision:
+        # ブリッジ側を固定 IP にする。IPv6 も自動設定しない（k3s の node-ip が変わらないように）。
+        # 既定の経路は Lima の NAT 側（eth0）のまま使う。
+        - mode: system
+          script: |
+            #!/bin/sh
+            set -eu
+            # Lima は起動のたびに実行する。netplan apply は Lima の NAT 側も再起動するため、内容が変わったときだけ適用する。
+            f=/etc/netplan/60-lima0-static.yaml
+            tmp=$(mktemp)
+            trap 'rm -f "$tmp"' EXIT
+            cat >"$tmp" <<'NETPLAN'
+            network:
+              version: 2
+              ethernets:
+                lima0:
+                  dhcp4: false
+                  dhcp6: false
+                  accept-ra: false
+                  addresses: [{{ vm_host_vm_ip }}/{{ vm_host_vm_prefix }}]
+            NETPLAN
+            if ! cmp -s "$tmp" "$f"; then
+              install -m 600 "$tmp" "$f"
+              netplan apply
+            fi
+
+- name: Check whether the VM already exists
+  ansible.builtin.stat:
+    path: "~/.lima/{{ vm_host_vm_name }}/lima.yaml"
+  register: vm_host_vm_instance
+
+# Lima は作成時にしか定義を読まないため、作成後に変えても反映されない。
+- name: Warn that the VM must be recreated
+  ansible.builtin.debug:
+    msg: "The definition of {{ vm_host_vm_name }} changed after the VM was created; delete and recreate the VM to apply it"
+  changed_when: true
+  when: vm_host_vm_definition is changed and vm_host_vm_instance.stat.exists
+
+# 消した VM を LaunchDaemon が起動しようとして再試行を繰り返すため、作る前に登録を外す。
+- name: Unload the LaunchDaemon before creating the VM
+  become: true
+  ansible.builtin.command: "/bin/launchctl bootout system/io.lima-vm.daemon.{{ vm_host_vm_name }}"
+  register: vm_host_bootout_before_create
+  changed_when: vm_host_bootout_before_create.rc == 0
+  # 未登録のときは失敗する。
+  failed_when: false
+  when: not vm_host_vm_instance.stat.exists and not ansible_check_mode
+
+- name: Create the VM
+  ansible.builtin.command:
+    argv:
+      - "{{ vm_host_limactl }}"
+      - create
+      - "--name={{ vm_host_vm_name }}"
+      - --tty=false
+      - "{{ vm_host_vm_name }}.yaml"
+    chdir: ~/.config/lima
+    creates: "~/.lima/{{ vm_host_vm_name }}/lima.yaml"
+  # 初回の --check では定義ファイルのディレクトリがまだない。
+  ignore_errors: "{{ ansible_check_mode }}"
+
+# 以降は絶対パスが要るため、ログインユーザーのホームを実機から取得する。
+- name: Gather the login user's home directory
+  ansible.builtin.setup:
+    gather_subset: [min]
+    filter: [ansible_user_dir]
+
+# limactl autostart enable --condition=boot とほぼ同じ内容。limactl は内部で sudo を対話的に呼び、
+# 実行ファイルの版つきのパスを書き込むため、Homebrew の固定のパスで plist を置く。
+# Lima との違い: VM 専用のホストなので CPU と I/O を抑えない（Standard）。
+# 外すときに launchd が強制終了するまでの時間を、既定の 20 秒から延ばし、ゲストが止まるのを待つ。
+# launchd は 60 秒より長い値を 60 秒として扱う（macOS 26.6 で確認）。
+- name: Install the LaunchDaemon that starts the VM at boot
+  become: true
+  ansible.builtin.copy:
+    dest: "/Library/LaunchDaemons/io.lima-vm.daemon.{{ vm_host_vm_name }}.plist"
+    owner: root
+    group: wheel
+    mode: '0644'
+    # 壊れた plist で VM を止めてしまわないよう、書く前に検証する。
+    validate: /usr/bin/plutil -lint %s
+    content: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+      	<key>Label</key>
+      	<string>io.lima-vm.daemon.{{ vm_host_vm_name }}</string>
+      	<key>UserName</key>
+      	<string>{{ ansible_user }}</string>
+      	<key>EnvironmentVariables</key>
+      	<dict>
+      		<key>LIMA_HOME</key>
+      		<string>{{ ansible_facts['user_dir'] }}/.lima</string>
+      		<key>PATH</key>
+      		<string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+      	</dict>
+      	<key>ProgramArguments</key>
+      	<array>
+      		<string>{{ vm_host_limactl }}</string>
+      		<string>start</string>
+      		<string>{{ vm_host_vm_name }}</string>
+      		<string>--foreground</string>
+      	</array>
+      	<key>RunAtLoad</key>
+      	<true/>
+      	<key>KeepAlive</key>
+      	<dict>
+      		<key>SuccessfulExit</key>
+      		<false/>
+      	</dict>
+      	<key>StandardErrorPath</key>
+      	<string>{{ ansible_facts['user_dir'] }}/.lima/{{ vm_host_vm_name }}/launchd.stderr.log</string>
+      	<key>StandardOutPath</key>
+      	<string>{{ ansible_facts['user_dir'] }}/.lima/{{ vm_host_vm_name }}/launchd.stdout.log</string>
+      	<key>WorkingDirectory</key>
+      	<string>{{ ansible_facts['user_dir'] }}/.lima/{{ vm_host_vm_name }}</string>
+      	<key>ExitTimeOut</key>
+      	<integer>60</integer>
+      	<key>ProcessType</key>
+      	<string>Standard</string>
+      </dict>
+      </plist>
+  register: vm_host_daemon_plist
+
+# 動いている socket_vmnet は古い版と端子のまま動き続ける。VM を初めて作る実行では不要。
+- name: Warn that the VM host must be rebooted
+  ansible.builtin.debug:
+    msg: "socket_vmnet, its sudoers rules, or the bridged network changed; reboot the VM host to apply them"
+  changed_when: true
+  when: >-
+    vm_host_vm_instance.stat.exists
+    and ((ansible_check_mode and (vm_host_socket_vmnet.content | default('') | b64decode | trim) != socket_vmnet_version ~ ' ' ~ socket_vmnet_sha256)
+    or vm_host_socket_vmnet_tmp is not skipped or vm_host_sudoers is changed or vm_host_networks is changed)
+
+- name: Check whether the LaunchDaemon is loaded
+  ansible.builtin.command: "/bin/launchctl print system/io.lima-vm.daemon.{{ vm_host_vm_name }}"
+  register: vm_host_daemon_loaded
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# 先に limactl stop でゲストをきちんと止める。正常終了なので KeepAlive は起動し直さない。
+# 登録を先に外すと、launchd が ExitTimeOut の後に強制終了しうる。
+- name: Hand the VM over to the LaunchDaemon
+  when: (vm_host_daemon_plist is changed or vm_host_daemon_loaded.rc != 0) and not ansible_check_mode
+  block:
+    - name: Stop the VM
+      ansible.builtin.command: "{{ vm_host_limactl }} stop {{ vm_host_vm_name }}"
+      register: vm_host_vm_stop
+      changed_when: vm_host_vm_stop.rc == 0
+      # 止まっているときも失敗するため、結果は次の状態で判断する。
+      failed_when: false
+
+    # 止まっていないまま登録を外すと、launchd が強制終了する。
+    - name: Verify the VM stopped
+      ansible.builtin.command: "{{ vm_host_limactl }} list --format {{ '{{.Status}}' }} {{ vm_host_vm_name }}"
+      register: vm_host_vm_stopped
+      changed_when: false
+      failed_when: vm_host_vm_stopped.stdout != 'Stopped'
+
+    # ホストの起動直後は、ジョブが VM を起動中でも Stopped と読めることがある。ジョブが終わるのを待つ。
+    - name: Wait for the LaunchDaemon job to exit
+      ansible.builtin.command: "/bin/launchctl print system/io.lima-vm.daemon.{{ vm_host_vm_name }}"
+      register: vm_host_daemon_idle
+      until: "'state = running' not in vm_host_daemon_idle.stdout"
+      retries: 12
+      delay: 5
+      changed_when: false
+      # 未登録のときは失敗するが、外すものがないので問題ない。
+      failed_when: "'state = running' in vm_host_daemon_idle.stdout"
+
+    - name: Unload the previous LaunchDaemon
+      become: true
+      ansible.builtin.command: "/bin/launchctl bootout system/io.lima-vm.daemon.{{ vm_host_vm_name }}"
+      register: vm_host_bootout
+      changed_when: vm_host_bootout.rc == 0
+      # 未登録のときは失敗する。
+      failed_when: false
+
+    # bootout は外し終わる前に戻ることがあり、直後の bootstrap が失敗しうる。
+    - name: Load the LaunchDaemon
+      become: true
+      ansible.builtin.command: "/bin/launchctl bootstrap system /Library/LaunchDaemons/io.lima-vm.daemon.{{ vm_host_vm_name }}.plist"
+      register: vm_host_bootstrap
+      # 外し終わるまで、ExitTimeOut（60 秒）より長く待つ。
+      until: vm_host_bootstrap.rc == 0
+      retries: 25
+      delay: 3
+      changed_when: true
+
+# command は --check で動かないため、VM が止まって起動し直す予定をここで示す。
+- name: Report the pending VM restart
+  ansible.builtin.debug:
+    msg: "The LaunchDaemon will be reloaded; the VM {{ vm_host_vm_name }} will stop and start again"
+  changed_when: true
+  when: ansible_check_mode and (vm_host_daemon_plist is changed or vm_host_daemon_loaded.rc != 0)
+
+- name: Read the VM status
+  ansible.builtin.command: "{{ vm_host_limactl }} list --format {{ '{{.Status}}' }} {{ vm_host_vm_name }}"
+  register: vm_host_vm_status
+  changed_when: false
+  check_mode: false
+  # 初回の --check では Lima も VM もまだない。
+  ignore_errors: "{{ ansible_check_mode }}"
+
+# Broken などのときは待っても直らないため、すぐに止める。登録し直した直後は起動途中なので確かめない。
+- name: Verify the VM is in a known state
+  ansible.builtin.assert:
+    that: vm_host_vm_status.stdout in ['Running', 'Stopped']
+    fail_msg: "VM {{ vm_host_vm_name }} is {{ vm_host_vm_status.stdout }}; check ~/.lima/{{ vm_host_vm_name }}/ha.stderr.log"
+  when: vm_host_bootstrap is skipped and not ansible_check_mode
+
+# limactl stop で止めると正常終了なので、KeepAlive では起動し直さない。
+# 登録し直した直後は RunAtLoad で起動中のため、そのときは実行しない。
+- name: Start the VM through the LaunchDaemon
+  become: true
+  ansible.builtin.command: "/bin/launchctl kickstart system/io.lima-vm.daemon.{{ vm_host_vm_name }}"
+  changed_when: true
+  # ホストの起動直後は、LaunchDaemon が起動中でも Stopped と読めることがあるため、動いていれば送らない。
+  when: >-
+    vm_host_vm_status.stdout == 'Stopped' and vm_host_bootstrap is skipped
+    and 'state = running' not in vm_host_daemon_loaded.stdout and not ansible_check_mode
+
+- name: Wait for the VM to run
+  ansible.builtin.command: "{{ vm_host_limactl }} list --format {{ '{{.Status}}' }} {{ vm_host_vm_name }}"
+  register: vm_host_vm_status
+  until: vm_host_vm_status.stdout == 'Running'
+  # 初回の起動が間に合わなくても、再実行すれば続きから待つ。
+  # 初回はイメージの取得と起動に時間がかかる。
+  retries: 120
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode
