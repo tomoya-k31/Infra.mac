@@ -76,6 +76,17 @@ $ ansible mac-mini-2018 -i inventory -b --become-password-file scripts/become-pa
 $ KUBECONFIG=~/.kube/config-home kubectl get nodes
 ```
 
+### VM host for the k3s agent (M4 Mac mini / macOS)
+
+Complete the one-time setup (SSH key and sudo password in 1Password) first:
+[docs/k3s-vm-host-setup.md](docs/k3s-vm-host-setup.md)
+
+```shell
+# Dry-run, then keep the Mac awake and restart it after a power failure
+$ ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/vm-host-become-password.sh --diff --check
+$ ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/vm-host-become-password.sh
+```
+
 ## Directory Structure
 
 ```
@@ -90,14 +101,17 @@ $ KUBECONFIG=~/.kube/config-home kubectl get nodes
 ├── .gitignore
 ├── localhost-mac.yml       # Main Ansible playbook (local Mac)
 ├── k3s-mac-mini.yml        # Ansible playbook for the k3s server
-├── inventory/              # Inventory for the k3s nodes (hosts.yml, group_vars, host_vars)
+├── k3s-vm-host.yml         # Ansible playbook for the macOS host of the k3s VM
+├── inventory/              # Inventory for the k3s nodes and the VM host (hosts.yml, group_vars, host_vars)
 ├── requirements.yml        # Collections ansible-lint needs
 ├── README.md               # This documentation file
 ├── docs/
 │   ├── ansible-improvement-plan.md  # Target layout and migration steps
-│   └── k3s-mac-mini-setup.md  # One-time setup before running k3s-mac-mini.yml
+│   ├── k3s-mac-mini-setup.md  # One-time setup before running k3s-mac-mini.yml
+│   └── k3s-vm-host-setup.md   # One-time setup before running k3s-vm-host.yml
 ├── scripts/
 │   ├── become-password.sh  # Reads the k3s server's sudo password from 1Password
+│   ├── vm-host-become-password.sh  # Reads the VM host's sudo password from 1Password
 │   └── update-ai-content.sh  # Imports third-party AI content at pinned commits (needs Lola)
 ├── third_party/            # Licenses of the imported AI content
 └── tasks/
@@ -105,7 +119,8 @@ $ KUBECONFIG=~/.kube/config-home kubectl get nodes
     ├── tools.yml           # Tasks for other tools (Krew plugins, SOPS, hishtory, Alacritty terminfo)
     ├── langs.yml           # Tasks for language tools (Rust, SDKMAN)
     ├── macos_defaults.yml  # Tasks for macOS system preferences
-    └── k3s/                # Tasks for the k3s server
+    ├── k3s/                # Tasks for the k3s server
+    └── vm_host/            # Tasks for the macOS host of the k3s VM
 ```
 
 The repository is organized as follows:

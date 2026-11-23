@@ -1,6 +1,6 @@
 # Ansible 構成の改善プラン
 
-2026-11 時点の調査に基づく提案です。段階 0、段階 1、段階 2 のうち Mac 用タスクの指摘の修正を実施済みです。残りは着手前に承認を得ます。
+2026-11 時点の調査に基づく提案です。段階 0、段階 1、段階 2 のうち Mac 用タスクの指摘の修正を実施済みです。段階 4 のうち VM ホスト（M4 の macOS）の準備は、クラスタに触れないため段階 3 より先に進めています。残りは着手前に承認を得ます。
 
 ## 対象と方針
 
@@ -31,13 +31,14 @@
 ```text
 localhost-mac.yml            # 開発用 Mac。インベントリは使わない
 k3s.yml                      # k3s_server、次に k3s_agent
+k3s-vm-host.yml              # VM ホスト（M4 の macOS）。k3s のノードではない
 vars/mac/{common,<profile>}.yml
 inventory/
 ├── hosts.yml                # ホストとグループだけ
-├── group_vars/{k3s,k3s_server,k3s_agent}.yml
+├── group_vars/{k3s,k3s_server,k3s_agent,vm_hosts}.yml
 └── host_vars/<host>.yml
 roles/{k3s_common,k3s_server,k3s_agent,k3s_console}/   # 段階 4 で作る
-tasks/                       # Mac 用。ロールにしない
+tasks/                       # Mac 用。ロールにしない（vm_host/ は VM ホスト用）
 ```
 
 - **Mac**: 1 台ずつ手元で実行するため、インベントリに並べません。`connection: local` のホストを複数並べると、`--limit` を忘れたときに同じ Mac へ全台分を適用してしまいます。代わりにプロファイル名（例: `personal`、`work`）で変数を選びます。公開リポジトリなので、Mac のホスト名は書きません。

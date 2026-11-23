@@ -1,0 +1,49 @@
+---
+# 常時動かすため、スリープさせず、停電から復旧したら自動で起動する。
+# 起動後はログイン画面で止まるため、VM はログインなしで動く LaunchDaemon で起動する（Lima の boot 条件の自動起動）。
+
+- name: Configure power settings
+  vars:
+    # 電源の区分（AC、UPS など）ごとに値がある。この Mac が対応しないキーは pmset が無視し、行も出ないため、
+    # どの区分にも違う値の行がなく、AC Power の区分に両方の値があれば設定済みとみなす。
+    # 常時動かすホストなので、UPS などの区分も pmset -a で同じ値にそろえる。
+    # 見出しがなければ出力全体で判定する（macOS 26.6 では「AC Power:」の見出しがある）。
+    # AC の区分は、次の「〜 Power:」の見出しまでとする。値の行に「 Power:」は現れない（macOS 26.6 で確認）。
+    # Jinja の文字列はエスケープを解釈するので、正規表現にバックスラッシュを使わない。
+    # pmset はキーと値の間をスペースで揃える（macOS 26.6 で確認。タブは使わない）。
+    # vm_host_pmset を読み直すと、この値も読み直した結果で評価される。
+    vm_host_pmset_ac: >-
+      {{ vm_host_pmset.stdout.split('AC Power:')[1].split(' Power:')[0]
+      if 'AC Power:' in vm_host_pmset.stdout else vm_host_pmset.stdout }}
+    vm_host_power_ok: >-
+      {{ vm_host_pmset.stdout is not regex('(?m)^ *sleep +[1-9]')
+      and vm_host_pmset.stdout is not regex('(?m)^ *autorestart +0')
+      and vm_host_pmset_ac is regex('(?m)^ *sleep +0( |$)')
+      and vm_host_pmset_ac is regex('(?m)^ *autorestart +1( |$)') }}
+  block:
+    - name: Read power settings
+      ansible.builtin.command: pmset -g custom
+      register: vm_host_pmset
+      changed_when: false
+      check_mode: false
+
+    - name: Disable sleep and restart after a power failure
+      become: true
+      ansible.builtin.command: pmset -a sleep 0 autorestart 1
+      changed_when: true
+      when: not vm_host_power_ok | bool
+
+    # command は dry-run でスキップされ changed にならないため、変更予定をここで示す。
+    - name: Report the pending power change
+      ansible.builtin.debug:
+        msg: "pmset -a sleep 0 autorestart 1 would run"
+      changed_when: true
+      when: ansible_check_mode and not vm_host_power_ok | bool
+
+    # この Mac が対応しないキーを pmset は無視するため、反映されたかを読み直して確かめる。
+    - name: Verify power settings
+      ansible.builtin.command: pmset -g custom
+      register: vm_host_pmset
+      changed_when: false
+      failed_when: vm_host_pmset.rc != 0 or not vm_host_power_ok | bool
+      when: not ansible_check_mode

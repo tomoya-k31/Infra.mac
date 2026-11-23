@@ -1,0 +1,10 @@
+# k3s の VM を動かす macOS（M4 Mac mini）を設定する。
+# SSH 公開鍵の登録と、1Password への sudo パスワードの登録が済んでいることが前提。
+# 実行には --become-password-file scripts/vm-host-become-password.sh が必要。
+- name: Set up the macOS host for the k3s VM
+  hosts: vm_hosts
+  gather_facts: false
+
+  tasks:
+    - name: Include power tasks
+      ansible.builtin.import_tasks: tasks/vm_host/power.yml

@@ -1,6 +1,6 @@
 ---
 description: 'Ansible conventions and best practices'
-applyTo: 'localhost-mac.yml, k3s-mac-mini.yml, requirements.yml, tasks/**/*.yml, roles/**/*.yml, inventory/**/*.yml, group_vars/**/*.yml, host_vars/**/*.yml'
+applyTo: 'localhost-mac.yml, k3s-mac-mini.yml, k3s-vm-host.yml, requirements.yml, tasks/**/*.yml, roles/**/*.yml, inventory/**/*.yml, group_vars/**/*.yml, host_vars/**/*.yml'
 ---
 
 # Ansible Conventions and Best Practices
