@@ -1,0 +1,5 @@
+---
+# k3s の VM を動かす macOS に共通の値
+ansible_user: tomoya-k31
+# Command Line Tools の Python。Homebrew や mise の Python は対象にしない。
+ansible_python_interpreter: /usr/bin/python3
