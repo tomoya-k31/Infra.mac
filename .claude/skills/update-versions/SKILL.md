@@ -32,6 +32,6 @@ curl -fsSL -o "$TMPDIR/pin" "<url>" && shasum -a 256 "$TMPDIR/pin"
 
 ## k3s
 
-Do not skip a Kubernetes minor version. Applying the change restarts the live cluster, so dry-run it and get the user's approval before executing.
+Do not skip a Kubernetes minor version. Once an agent play exists (planned in `docs/ansible-improvement-plan.md`, stage 4), apply the change to the servers first, then to the agents: an agent must not run a newer version than the servers. Applying the change restarts the live cluster, so dry-run it and get the user's approval before executing.
 
 Finish with the `ansible-verify` skill.

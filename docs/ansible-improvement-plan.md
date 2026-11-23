@@ -57,7 +57,7 @@ tasks/                       # Mac 用。ロールにしない
 
 - `inventory/` に分け、play の `vars` を `group_vars` と `host_vars` へ移す。Vault のファイルは作らない
 - `k3s-mac-mini.yml` の `-i` と、AGENTS.md、README、docs のコマンドを更新する
-- 確認: `ansible-inventory --list` で移行前後の変数が同じ。dry-run が `changed=0`
+- 確認: 移行前の play の `vars` と、移行後の `ansible-inventory --host mac-mini-2018` が同じ。dry-run が `changed=0`（`--tags all,upgrade,console,kiosk` で確認。保留中の apt 更新があると upgrade のタスクだけは changed になる。最終のコミットでの `PLAY RECAP` の件数だけを PR に記載し、`--diff` の出力は載せない）
 - 危険: 低（サーバーの状態は変えない）。戻し方: revert
 
 ### 段階 2: Mac の複数台対応
@@ -76,10 +76,11 @@ tasks/                       # Mac 用。ロールにしない
 
 - 既存のタスクを `k3s_common`、`k3s_server` に分け、`k3s_agent` を足す。既存サーバーの dry-run が `changed=0` であることを先に確認する
 - join には server token ではなく agent token を使う。server token は管理者相当（[token](https://docs.k3s.io/cli/token)）。1Password に置き、`no_log` と 0600 にする
-- kubeconfig は先頭の server でだけ書く。`console` と `kiosk` は画面のあるホストに限る
-- M4 の VM は arm64 で、ブリッジ接続（socket_vmnet の bridged）にする。NAT では host-gw の経路が届かない。k9s の取得は amd64 固定なので、kiosk は 2018 に限る
+- kubeconfig は先頭の server でだけ書く。agent は server とは別の play とタスクにし、`console` と `kiosk` は server の play にだけ置く
+- M4 の macOS（VM の土台）は k3s のノードではないため、別の playbook とインベントリグループにし、タスクは `tasks/vm_host/` に置く
+- M4 の VM は arm64 で、ブリッジ接続（socket_vmnet の bridged）にする。NAT では host-gw の経路が届かない。k9s の取得は amd64 の deb に固定しているので、kiosk は 2018 に限る
 - ホスト名は一意、同じ L2（host-gw の条件）、10250/tcp を全ノード間、6443/tcp を agent から server へ（[要件](https://docs.k3s.io/installation/requirements)）
-- 更新は server を先に 1 台ずつ、次に agent。マイナーバージョンは飛ばさない（[手動更新](https://docs.k3s.io/upgrades/manual)）
+- 更新は server を先に 1 台ずつ、次に agent。k3s の版は共通の 1 つの値なので、playbook では server の play を agent の play より前に置き、server で失敗したら agent に進まないようにする（`any_errors_fatal`）。マイナーバージョンは飛ばさない（[手動更新](https://docs.k3s.io/upgrades/manual)）
 - 危険: 中。戻し方: ノードを drain して削除する
 
 ### 段階 5: 高可用性（必要になった場合だけ）
