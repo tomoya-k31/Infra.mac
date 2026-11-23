@@ -8,9 +8,7 @@
     creates: "{{ xdg_data_home }}/krew/receipts/{{ item }}.yaml"
   environment:
     # export KREW_ROOT="$XDG_DATA_HOME/krew"
-    # export PATH="${KREW_ROOT:-$XDG_DATA_HOME/krew}/bin:$PATH"
     KREW_ROOT: "{{ xdg_data_home }}/krew"
-    PATH: "{{ xdg_data_home }}/krew/bin:{{ lookup('env', 'PATH') }}"
   loop:
     - stern
     - ctx
