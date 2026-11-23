@@ -9,8 +9,8 @@ Change one component per branch. Read its release notes first and report breakin
 
 | Component | Where | Also update |
 |---|---|---|
-| k3s | `k3s_version` in `k3s-mac-mini.yml` | `k3s_installer_sha256` |
-| k9s | `k9s_version` in `k3s-mac-mini.yml` | `k9s_deb_sha256` |
+| k3s | `k3s_version` in `inventory/group_vars/k3s.yml` | `k3s_installer_sha256` |
+| k9s | `k9s_version` in `inventory/host_vars/mac-mini-2018.yml` | `k9s_deb_sha256` |
 | SOPS, hishtory | `*_version` in `tasks/tools.yml` | `*_sha256`. hishtory is skipped on Macs that already have it, so tell the user |
 | Ansible collections | `requirements.yml` | match the versions bundled with Homebrew's ansible |
 | Lola | `lola_version` and the header of `scripts/update-ai-content.sh` | the versions in `AGENTS.md`; check that its hook and install behavior has not changed |
@@ -32,6 +32,6 @@ curl -fsSL -o "$TMPDIR/pin" "<url>" && shasum -a 256 "$TMPDIR/pin"
 
 ## k3s
 
-Do not skip a Kubernetes minor version. Applying the change restarts the live cluster, so dry-run it and get the user's approval before executing.
+Do not skip a Kubernetes minor version. Once an agent play exists (planned in `docs/ansible-improvement-plan.md`, stage 4), apply the change to the servers first, then to the agents: an agent must not run a newer version than the servers. Applying the change restarts the live cluster, so dry-run it and get the user's approval before executing.
 
 Finish with the `ansible-verify` skill.

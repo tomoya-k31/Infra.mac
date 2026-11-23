@@ -1,20 +1,10 @@
 # Mac mini 2018 (Ubuntu Server 26.04) を k3s サーバーにする。
 # OS のインストール・IP 固定・SSH 公開鍵の登録が済んでいることが前提。
+# 変数は inventory/ の group_vars と host_vars にある。
 - name: Set up the k3s server
-  hosts: k3s
+  hosts: k3s_server
   # 途中で失敗しても通知済みの handler を実行する。再実行では changed にならず、二度と通知されないため。
   force_handlers: true
-
-  vars:
-    k3s_version: "v1.37.2+k3s1"
-    # k3s_version のタグの install.sh の SHA-256。バージョンと一緒に更新する。
-    k3s_installer_sha256: ed01f89fd977bf20ac1516bbebf8370bf3ddbaa55dac8aba610956a4c78cc00b
-    # 全ノードが同じ L2 にあることが条件。server を追加するときは同じ値にする。
-    k3s_flannel_backend: host-gw
-    k9s_version: "v0.51.0"
-    k9s_deb_sha256: 56b539a509eb2d6357cf4f575ed38c089f0e4880c95f79a70196b54f14954908
-    # 実際の端子名と解像度は /sys/class/drm/card*-*/{status,modes} で確認する。
-    console_kernel_params: "video=DP-1:1540x720@60 consoleblank=0 modprobe.blacklist=applesmc loglevel=3"
 
   tasks:
     # never: 明示的に --tags で指定したときだけ実行する。

@@ -58,19 +58,19 @@ Complete the one-time setup (SSH key and sudo password in 1Password) first:
 
 ```shell
 # Run a dry-run to see potential changes
-$ ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file scripts/become-password.sh --diff --check
+$ ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh --diff --check
 
 # Install/upgrade/configure k3s (restarts it when the version or config changes) and write ~/.kube/config-home on the local Mac
-$ ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file scripts/become-password.sh
+$ ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh
 
 # Also run the opt-in parts
 #   upgrade: apt upgrade (never reboots)
 #   console: kernel parameters (applied on next reboot) and console log level for the attached display
 #   kiosk:   show k9s on tty1 as an unprivileged user with read-only access (log in with Ctrl+Alt+F2); use with console
-$ ansible-playbook -i inventory.yml k3s-mac-mini.yml --become-password-file scripts/become-password.sh --tags all,upgrade,console,kiosk
+$ ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh --tags all,upgrade,console,kiosk
 
-# Reboot the server
-$ ansible k3s -i inventory.yml -b --become-password-file scripts/become-password.sh -m reboot
+# Reboot the server (one host at a time)
+$ ansible mac-mini-2018 -i inventory -b --become-password-file scripts/become-password.sh -m reboot
 
 # Use the cluster from the local Mac
 $ KUBECONFIG=~/.kube/config-home kubectl get nodes
@@ -90,7 +90,7 @@ $ KUBECONFIG=~/.kube/config-home kubectl get nodes
 ├── .gitignore
 ├── localhost-mac.yml       # Main Ansible playbook (local Mac)
 ├── k3s-mac-mini.yml        # Ansible playbook for the k3s server
-├── inventory.yml           # Inventory for the k3s server
+├── inventory/              # Inventory for the k3s nodes (hosts.yml, group_vars, host_vars)
 ├── requirements.yml        # Collections ansible-lint needs
 ├── README.md               # This documentation file
 ├── docs/

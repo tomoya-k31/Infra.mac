@@ -88,7 +88,7 @@ while IFS= read -r file; do
   cat "$tmp"/src/*/module/"$file" | cmp -s - "$tmp/project/.claude/$file" || die "differs from the source: $file"
 done <<< "$expected"
 # 対象を Ansible のファイルに絞る（元は全 YAML で、GitHub Actions も含まれる）。本文は変えない。
-sed "s|^applyTo: .*|applyTo: 'localhost-mac.yml, k3s-mac-mini.yml, inventory.yml, requirements.yml, tasks/**/*.yml, roles/**/*.yml, inventory/**/*.yml, group_vars/**/*.yml, host_vars/**/*.yml'|" \
+sed "s|^applyTo: .*|applyTo: 'localhost-mac.yml, k3s-mac-mini.yml, requirements.yml, tasks/**/*.yml, roles/**/*.yml, inventory/**/*.yml, group_vars/**/*.yml, host_vars/**/*.yml'|" \
   "$tmp/upstream.instructions.md" > "$tmp/ansible.instructions.md"
 grep -q "^applyTo: 'localhost-mac" "$tmp/ansible.instructions.md" || die "applyTo not found in ansible.instructions.md"
 
