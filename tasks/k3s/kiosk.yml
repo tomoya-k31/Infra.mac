@@ -90,8 +90,8 @@
         changed=1
       fi
       if [ -n "$changed" ]; then
-        # 初回はまだ kiosk のサービスがない。
-        systemctl try-restart k9s-kiosk.service 2>/dev/null || true
+        # 初回はまだ kiosk のサービスがない。API を待つ kiosk の起動は待たない。
+        systemctl --no-block try-restart k9s-kiosk.service 2>/dev/null || true
         echo changed
       fi
 
