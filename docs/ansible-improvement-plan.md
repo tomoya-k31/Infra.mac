@@ -21,7 +21,6 @@
 | 中 | kubeconfig を server ごとに同じファイルへ書く。server を 2 台以上にすると最後の server で上書きされる（agent は書かない） | `tasks/k3s/kubeconfig.yml` |
 | 中 | Mac ごとの差分を表せない | `tasks/homebrew.yml` |
 | 中 | API が 1 分以上止まっていると、稼働中の k3s を未導入とみなして再起動しうる | `tasks/k3s/server.yml` |
-| 中 | kiosk のマニフェストが AGENTS.md の境界の原則と矛盾する。例外にするか移すかは未決 | `tasks/k3s/kiosk.yml` |
 
 ## 目標の構成
 
