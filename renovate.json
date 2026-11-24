@@ -129,7 +129,7 @@
         "k3s"
       ],
       "prBodyNotes": [
-        "Applying this restarts the live cluster. Check that it moves exactly one minor version from the current pin; if the stable channel is further ahead, change it to the latest patch of the next minor first (Kubernetes does not support skipping a minor). Take a backup (`--tags backup`), upgrade the servers first (`--limit k3s_server`), then the agents."
+        "Applying this restarts the live cluster. Check that it stays within the current minor or moves to the next one; if the stable channel is two or more minors ahead, change it to the latest patch of the next minor first (Kubernetes does not support skipping a minor). Take a backup (`--tags backup`), upgrade the servers first (`--limit k3s_server`), then the agents."
       ]
     }
   ]
