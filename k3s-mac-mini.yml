@@ -21,6 +21,8 @@
       ansible.builtin.import_tasks: tasks/k3s/server.yml
     - name: Include kubeconfig tasks
       ansible.builtin.import_tasks: tasks/k3s/kubeconfig.yml
+    - name: Include mDNS tasks
+      ansible.builtin.import_tasks: tasks/k3s/mdns.yml
     - name: Include console tasks
       ansible.builtin.import_tasks: tasks/k3s/console.yml
       tags: [never, console]
@@ -33,6 +35,14 @@
       become: true
       ansible.builtin.command: update-grub
       changed_when: true
+
+    - name: Restart avahi
+      become: true
+      ansible.builtin.systemd_service:
+        name: avahi-daemon
+        state: restarted
+      # 初回の --check では avahi がまだ入っていない。
+      ignore_errors: "{{ ansible_check_mode }}"
 
     - name: Restart k9s kiosk
       become: true

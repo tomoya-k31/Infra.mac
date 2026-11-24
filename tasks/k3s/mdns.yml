@@ -1,0 +1,57 @@
+---
+# k3s_mdns_names の名前（Ingress のホスト名）を、このホストの LAN の IPv4 アドレスとして mDNS で広告する。
+# ルーターに DNS のレコードを置けないため。.local は mDNS に対応した端末（macOS、iOS など）でしか引けない。
+# 一覧を空にすると、名前の広告をやめる（avahi は残す）。
+
+- name: Check the mDNS names
+  ansible.builtin.assert:
+    that: k3s_mdns_names | default([]) | reject('match', '^[a-z0-9-]+(\.[a-z0-9-]+)*\.local$') | list | length == 0
+    fail_msg: "k3s_mdns_names must be lowercase names ending in .local"
+    quiet: true
+
+- name: Install avahi
+  become: true
+  ansible.builtin.apt:
+    name: avahi-daemon
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    # libnss-mdns などは入れない（このホストの名前解決は変えない）。
+    install_recommends: false
+
+# 既定ではすべてのインターフェースで広告し、k3s の cni0 などのアドレスも出してしまう。
+- name: Limit avahi to the LAN interface
+  become: true
+  community.general.ini_file:
+    path: /etc/avahi/avahi-daemon.conf
+    section: server
+    option: allow-interfaces
+    value: "{{ ansible_facts['default_ipv4']['interface'] }}"
+    # avahi は = の前後の空白を許さない。
+    no_extra_spaces: true
+    mode: '0644'
+  notify: Restart avahi
+
+- name: Publish the Ingress host names
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/avahi/hosts
+    mode: '0644'
+    content: |
+      # Ansible が管理する（k3s_mdns_names）。
+      {% for name in k3s_mdns_names | default([]) %}
+      {{ ansible_facts['default_ipv4']['address'] }} {{ name }}
+      {% endfor %}
+  notify: Restart avahi
+
+# 導入直後の avahi は全インターフェースで広告しているので、play の終わりを待たずに設定を反映する。
+- name: Apply the avahi settings now
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable avahi
+  become: true
+  ansible.builtin.systemd_service:
+    name: avahi-daemon
+    enabled: true
+    state: started
+  when: not ansible_check_mode

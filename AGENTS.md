@@ -132,6 +132,7 @@ Where this repository differs from the imported content:
 
 1. **server.yml** - k3s installation, config, and readiness check; restarts the live cluster when the version, flannel backend, node IP, or agent token changes. The agent token comes from 1Password (`k3s_agent_token_ref`) into a root-only file, so agents never get the server token
 2. **kubeconfig.yml** - admin kubeconfig at `~/.kube/config-home` on the local Mac only; on the server use `sudo k3s kubectl`
+   **mdns.yml** - avahi on the server's LAN interface publishes `k3s_mdns_names` (Ingress hosts such as `argocd.local`) at the server's IPv4 address; the router cannot hold DNS records. An empty list stops publishing
 3. **upgrade.yml**, **console.yml**, **kiosk.yml** - opt-in parts tagged `never`; add them with `--tags all,upgrade,console,kiosk`
 4. **backup.yml** - opt-in (`--tags backup`): the SQLite datastore and the server token, encrypted with age on the local Mac (`docs/k3s-backup-restore.md`). Take one before upgrading k3s or adding a node
 
