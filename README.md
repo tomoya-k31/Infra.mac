@@ -106,6 +106,7 @@ $ ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/v
 │   ├── instructions/       # Ansible instructions for Copilot
 │   └── workflows/          # CI (ansible-lint, lockfile verification) and actions.lock
 ├── AGENTS.md               # Rules for AI agents (CLAUDE.md imports it)
+├── renovate.json           # Weekly PRs for pinned tool versions (checksums are updated by hand)
 ├── .gitignore
 ├── localhost-mac.yml       # Main Ansible playbook (local Mac)
 ├── k3s-mac-mini.yml        # Ansible playbook for the k3s server
