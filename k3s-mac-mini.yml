@@ -36,6 +36,12 @@
       ansible.builtin.command: update-grub
       changed_when: true
 
+    # Restart avahi より前に置く（handler は定義順に動く）。
+    - name: Reload systemd
+      become: true
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
     - name: Restart avahi
       become: true
       ansible.builtin.systemd_service:

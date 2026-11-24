@@ -1,7 +1,8 @@
 ---
 # k3s_mdns_names の名前（Ingress のホスト名）を、このホストの LAN の IPv4 アドレスとして mDNS で広告する。
 # ルーターに DNS のレコードを置けないため。.local は mDNS に対応した端末（macOS、iOS など）でしか引けない。
-# 一覧を空にすると、名前の広告をやめる（avahi は残す）。
+# /etc/avahi/hosts は逆引きも登録するため、このホスト自身の名前と同じ IP では衝突する。
+# 名前ごとに avahi-publish -R（逆引きなし）を常駐させる。一覧から外した名前は止める（avahi は残す）。
 
 - name: Check the mDNS names
   ansible.builtin.assert:
@@ -12,7 +13,7 @@
 - name: Install avahi
   become: true
   ansible.builtin.apt:
-    name: avahi-daemon
+    name: [avahi-daemon, avahi-utils]
     state: present
     update_cache: true
     cache_valid_time: 3600
@@ -32,17 +33,44 @@
     mode: '0644'
   notify: Restart avahi
 
-- name: Publish the Ingress host names
+# 初回の適用で書いた名前を消す（逆引きが衝突して広告されない）。
+- name: Clear the avahi hosts file
   become: true
   ansible.builtin.copy:
     dest: /etc/avahi/hosts
     mode: '0644'
     content: |
-      # Ansible が管理する（k3s_mdns_names）。
-      {% for name in k3s_mdns_names | default([]) %}
-      {{ ansible_facts['default_ipv4']['address'] }} {{ name }}
-      {% endfor %}
+      # 使わない。名前は avahi-alias@<名前>.service が広告する（Ansible の k3s_mdns_names）。
   notify: Restart avahi
+
+- name: Install the mDNS alias service
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/avahi-alias@.service
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Publish %i over mDNS
+      After=avahi-daemon.service
+      BindsTo=avahi-daemon.service
+
+      [Service]
+      ExecStart=/usr/bin/avahi-publish --address --no-reverse %i {{ ansible_facts['default_ipv4']['address'] }}
+      # DynamicUser では avahi の D-Bus に接続できない（Failed to create client object）。
+      User=nobody
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      PrivateTmp=yes
+      # 名前が衝突すると avahi-publish は 0 で終わるため、always で再試行する。
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=avahi-daemon.service
+  register: mdns_unit
+  # avahi を再起動すると、BindsTo の各名前も新しい定義で起動し直す。
+  notify: [Reload systemd, Restart avahi]
 
 # 導入直後の avahi は全インターフェースで広告しているので、play の終わりを待たずに設定を反映する。
 - name: Apply the avahi settings now
@@ -55,3 +83,28 @@
     enabled: true
     state: started
   when: not ansible_check_mode
+
+- name: Find the published mDNS names
+  ansible.builtin.find:
+    paths: /etc/systemd/system/avahi-daemon.service.wants
+    patterns: "avahi-alias@*.service"
+    file_type: link
+  register: mdns_enabled
+
+- name: Stop the mDNS names removed from the list
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop: "{{ mdns_enabled.files | map(attribute='path') | map('basename') | difference(k3s_mdns_names | default([]) | map('regex_replace', '^', 'avahi-alias@') | map('regex_replace', '$', '.service')) }}"
+
+- name: Publish the mDNS names
+  become: true
+  ansible.builtin.systemd_service:
+    name: "avahi-alias@{{ item }}.service"
+    enabled: true
+    state: started
+  loop: "{{ k3s_mdns_names | default([]) }}"
+  # 初回の --check ではユニットがまだない。
+  when: not (ansible_check_mode and mdns_unit is changed)
