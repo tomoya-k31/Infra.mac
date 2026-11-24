@@ -12,7 +12,7 @@ Ansible automation for three independent targets:
 
 ## Repository Boundary
 
-This repository owns the hosts. A separate private repository, `<k8s-manifests-repo>` (not created yet; replace the placeholder with its name), owns what runs inside the k3s cluster. What needs root on a host belongs here; what `kubectl` can apply belongs there.
+This repository owns the hosts. A separate private repository, `tomoya-k31/Infra.k8s`, owns what runs inside the k3s cluster. What needs root on a host belongs here; what `kubectl` can apply belongs there.
 
 - Here: the OS, the k3s binary, `/etc/rancher/k3s/` (`config.yaml`, `registries.yaml`), kernel parameters, storage mounts, kubeconfig retrieval, the k9s kiosk
 - There: namespaces, RBAC, workloads, Ingress, Helm charts, `HelmChartConfig` for the components k3s ships, the GitOps controller, in-cluster secrets
@@ -26,7 +26,7 @@ This repository is public, and squash merges copy PR text permanently into git h
 - Secrets (passwords, tokens, private keys, kubeconfig): store in 1Password and commit only `op://` references
 - Personal information (real names, email addresses, employer or customer names, absolute home paths): omit, or use placeholders and `~`
 - Identifying values (public IP and MAC addresses, key fingerprints, Claude session URLs): use placeholders such as `<server-ip>`, or read them from `ansible_facts`
-- Accepted exceptions: the k3s nodes' private IPs (including the agent VM) and the k3s server's host name, the VM host's inventory and SSH host names, the login user that matches the GitHub handle, 1Password vault and item names, and upstream attribution in imported third-party files
+- Accepted exceptions: the k3s nodes' private IPs (including the agent VM) and the k3s server's host name, the VM host's inventory and SSH host names, the login user that matches the GitHub handle, the name of the companion repository `tomoya-k31/Infra.k8s`, 1Password vault and item names, and upstream attribution in imported third-party files
 - Before every commit, push, or GitHub post, review the full text, including pasted command output (`--diff`, `ssh -v`, logs). Report findings to the user by location, with the value masked
 
 ## Commands
