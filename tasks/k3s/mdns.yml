@@ -6,8 +6,8 @@
 
 - name: Check the mDNS names
   ansible.builtin.assert:
-    that: k3s_mdns_names | default([]) | reject('match', '^[a-z0-9-]+(\.[a-z0-9-]+)*\.local$') | list | length == 0
-    fail_msg: "k3s_mdns_names must be lowercase names ending in .local"
+    that: k3s_mdns_names | default([]) | reject('match', '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+local\Z') | list | length == 0
+    fail_msg: "k3s_mdns_names must be lowercase DNS names ending in .local (labels start and end with a letter or digit)"
     quiet: true
 
 - name: Install avahi
