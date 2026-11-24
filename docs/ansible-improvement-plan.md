@@ -99,8 +99,8 @@ tasks/                       # Mac 用。ロールにしない（vm_host/ は VM
 
 ## AI による保守
 
-- 定期: Dependabot の PR を確認する。`actions.lock` も更新されているかを初回に確かめる
+- 定期: Dependabot（GitHub Actions）と Renovate（固定したツールの版）の PR を確認する。Dependabot の PR は `actions.lock` を更新しないので、`verify-lockfile` が失敗したらそのブランチで `gh actions-lock --no-narrow` を実行する。Renovate の PR は下書きで作られる。版と組のハッシュを `update-versions` で直してから、下書きを解除してマージする
 - 随時: `update-versions`（版の更新）、`ansible-verify`（検証）、`/ansible-cop-review`（構成の点検）
 - 取り込み元の更新: `scripts/update-ai-content.sh` の ref を変え、差分の全文を確認する
-- Galaxy と k3s、k9s の自動更新が必要になったら Renovate を検討する。[Galaxy](https://docs.renovatebot.com/modules/manager/ansible-galaxy/) と正規表現での更新に対応し、[`actions.lock`](https://docs.renovatebot.com/modules/manager/github-actions/) の再生成は実験的
+- Renovate（`renovate.json`）を導入した。正規表現で k3s（stable チャネル）、k9s、socket_vmnet、SOPS、hishtory、gh-actions-lock の版を追う。[`actions.lock`](https://docs.renovatebot.com/modules/manager/github-actions/) の再生成は実験的なので GitHub Actions は Dependabot のまま、Galaxy のコレクションは Homebrew の ansible に合わせるので対象外
 - Copilot の cloud agent を使う場合は、`ansible-lint` を入れる設定（`copilot-setup-steps.yml`）を足す

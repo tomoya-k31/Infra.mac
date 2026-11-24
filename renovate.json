@@ -1,0 +1,136 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Pinned tool versions in Ansible files. GitHub Actions stay with Dependabot (actions.lock), and Ansible collections follow Homebrew's ansible.",
+  "extends": [
+    "config:recommended"
+  ],
+  "schedule": [
+    "before 9am on monday"
+  ],
+  "timezone": "Asia/Tokyo",
+  "labels": [
+    "dependencies"
+  ],
+  "enabledManagers": [
+    "custom.regex"
+  ],
+  "customDatasources": {
+    "k3s-stable": {
+      "defaultRegistryUrlTemplate": "https://update.k3s.io/v1-release/channels",
+      "format": "json",
+      "transformTemplates": [
+        "{\"releases\": [{\"version\": data[id = 'stable'].latest}]}"
+      ]
+    }
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "k3s, from the stable channel (the latest stable release; it can be more than one minor ahead)",
+      "managerFilePatterns": [
+        "/^inventory/group_vars/k3s\\.yml$/"
+      ],
+      "matchStrings": [
+        "k3s_version: \"(?<currentValue>v[^\"]+)\""
+      ],
+      "depNameTemplate": "k3s",
+      "datasourceTemplate": "custom.k3s-stable",
+      "versioningTemplate": "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\+k3s(?<build>\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "k9s for the kiosk",
+      "managerFilePatterns": [
+        "/^inventory/host_vars/mac-mini-2018\\.yml$/"
+      ],
+      "matchStrings": [
+        "k9s_version: \"(?<currentValue>v[^\"]+)\""
+      ],
+      "depNameTemplate": "derailed/k9s",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "socket_vmnet on the VM host",
+      "managerFilePatterns": [
+        "/^inventory/group_vars/vm_hosts\\.yml$/"
+      ],
+      "matchStrings": [
+        "socket_vmnet_version: \"(?<currentValue>v[^\"]+)\""
+      ],
+      "depNameTemplate": "lima-vm/socket_vmnet",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "SOPS on the local Mac",
+      "managerFilePatterns": [
+        "/^tasks/tools\\.yml$/"
+      ],
+      "matchStrings": [
+        "sops_version: \"(?<currentValue>v[^\"]+)\""
+      ],
+      "depNameTemplate": "getsops/sops",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "hishtory on the local Mac",
+      "managerFilePatterns": [
+        "/^tasks/tools\\.yml$/"
+      ],
+      "matchStrings": [
+        "hishtory_version: \"(?<currentValue>v[^\"]+)\""
+      ],
+      "depNameTemplate": "ddworken/hishtory",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "loose"
+    },
+    {
+      "customType": "regex",
+      "description": "gh-actions-lock in the lockfile check",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/verify-lockfile\\.yml$/"
+      ],
+      "matchStrings": [
+        "github/gh-actions-lock --pin (?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "github/gh-actions-lock",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "A checksum pinned next to the version must be updated by hand; open these PRs as drafts so they cannot be merged before that",
+      "matchDepNames": [
+        "k3s",
+        "derailed/k9s",
+        "lima-vm/socket_vmnet",
+        "getsops/sops",
+        "ddworken/hishtory"
+      ],
+      "draftPR": true,
+      "prBodyNotes": [
+        "Renovate does not update the SHA-256 pinned next to this version, and CI does not download anything, so a stale checksum passes CI and only fails when the playbook runs. Update it on this branch with the `update-versions` skill (see AGENTS.md), then mark the PR ready for review."
+      ]
+    },
+    {
+      "description": "hishtory is skipped on Macs that already have it, so a stale checksum would go unnoticed there",
+      "matchDepNames": [
+        "ddworken/hishtory"
+      ],
+      "prBodyNotes": [
+        "The playbook skips hishtory on Macs that already have it, so this version and its checksum are only exercised on a fresh Mac. Existing Macs update with `hishtory update`."
+      ]
+    },
+    {
+      "description": "k3s changes the live cluster: one minor at a time, servers before agents, backup first",
+      "matchDepNames": [
+        "k3s"
+      ],
+      "prBodyNotes": [
+        "Applying this restarts the live cluster. Check that it moves exactly one minor version from the current pin; if the stable channel is further ahead, change it to the latest patch of the next minor first (Kubernetes does not support skipping a minor). Take a backup (`--tags backup`), upgrade the servers first (`--limit k3s_server`), then the agents."
+      ]
+    }
+  ]
+}

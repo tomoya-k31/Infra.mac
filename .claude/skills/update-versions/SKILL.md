@@ -5,7 +5,7 @@ description: Update a version pinned in this repository (k3s, k9s, socket_vmnet,
 
 # Update a pinned version
 
-Change one component per branch. Read its release notes first and report breaking changes.
+Change one component per branch. Renovate opens PRs that bump only the version; on such a branch, update the checksum that goes with it. Read its release notes first and report breaking changes.
 
 | Component | Where | Also update |
 |---|---|---|
@@ -15,7 +15,7 @@ Change one component per branch. Read its release notes first and report breakin
 | SOPS, hishtory | `*_version` in `tasks/tools.yml` | `*_sha256`. hishtory is skipped on Macs that already have it, so tell the user |
 | Ansible collections | `requirements.yml` | match the versions bundled with Homebrew's ansible |
 | Lola | `lola_version` and the header of `scripts/update-ai-content.sh` | the versions in `AGENTS.md`; check that its hook and install behavior has not changed |
-| gh-actions-lock | `verify-lockfile.yml` | the version in `AGENTS.md` |
+| gh-actions-lock | `verify-lockfile.yml` | nothing else (AGENTS.md points to this file) |
 | GitHub Actions | `uses:` in `.github/workflows/` | `gh actions-lock --no-narrow` |
 
 ## Checksums
