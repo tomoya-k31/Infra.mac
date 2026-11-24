@@ -1,6 +1,6 @@
 # Ansible 構成の改善プラン
 
-2026-11 時点の調査に基づく提案です。段階 0、段階 1、段階 2 のうち Mac 用タスクの指摘の修正を実施済みです。段階 4 のうち VM ホスト（M4 の macOS）と VM（Lima、`192.168.11.201`）の準備は、クラスタに触れないため段階 3 より先に進めています。残りは着手前に承認を得ます。
+2026-11 時点の調査に基づく提案です。段階 0、段階 1、段階 3、段階 4 と、段階 2 のうち Mac 用タスクの指摘の修正を実施済みです。残りは着手前に承認を得ます。
 
 ## 対象と方針
 
@@ -8,7 +8,7 @@
 |---|---|---|
 | 開発用 Mac | `localhost-mac.yml`（全台同じ内容） | 複数台。用途ごとに差分を持つ |
 | k3s サーバー | Mac mini 2018、単一ノード、SQLite | 稼働を続ける |
-| 追加の k3s ノード | なし | M4 Mac mini 上の Linux VM を agent にする |
+| 追加の k3s ノード | M4 Mac mini 上の Linux VM（agent） | 必要になったら agent を足す |
 
 公式の [Tips](https://docs.ansible.com/ansible/latest/tips_tricks/ansible_tips_tricks.html) は「Keep it simple」、[Red Hat CoP](https://redhat-cop.github.io/automation-good-practices/) は規則を厳格に適用しすぎないよう求めています。個人の小さなリポジトリなので、必要になった段階で次へ進みます。
 
@@ -18,10 +18,7 @@
 
 | 優先 | 課題 | 場所 |
 |---|---|---|
-| 高 | クラスタのバックアップがない（SQLite と server token） | k3s |
-| 高 | agent 用の play とタスクがない | `k3s-mac-mini.yml` |
-| 高 | kubeconfig をホストごとに同じファイルへ書く。複数台では最後のノードで上書きされる | `tasks/k3s/kubeconfig.yml` |
-| 高 | `config.yaml` が 0644。join 用の token を書けない | `tasks/k3s/server.yml` |
+| 中 | kubeconfig を server ごとに同じファイルへ書く。server を 2 台以上にすると最後の server で上書きされる（agent は書かない） | `tasks/k3s/kubeconfig.yml` |
 | 中 | Mac ごとの差分を表せない | `tasks/homebrew.yml` |
 | 中 | API が 1 分以上止まっていると、稼働中の k3s を未導入とみなして再起動しうる | `tasks/k3s/server.yml` |
 | 中 | kiosk のマニフェストが AGENTS.md の境界の原則と矛盾する。例外にするか移すかは未決 | `tasks/k3s/kiosk.yml` |
@@ -30,14 +27,14 @@
 
 ```text
 localhost-mac.yml            # 開発用 Mac。インベントリは使わない
-k3s.yml                      # k3s_server、次に k3s_agent
+k3s-mac-mini.yml             # k3s_server、次に k3s_agent（目標の k3s.yml への改名は未実施）
 k3s-vm-host.yml              # VM ホスト（M4 の macOS）。k3s のノードではない
 vars/mac/{common,<profile>}.yml
 inventory/
 ├── hosts.yml                # ホストとグループだけ
 ├── group_vars/{k3s,k3s_server,k3s_agent,vm_hosts}.yml
 └── host_vars/<host>.yml
-roles/{k3s_common,k3s_server,k3s_agent,k3s_console}/   # 段階 4 で作る
+tasks/k3s/                   # server、agent、opt-in の部分。ロールには分けていない
 tasks/                       # Mac 用。ロールにしない（vm_host/ は VM ホスト用）
 ```
 
@@ -73,11 +70,12 @@ tasks/                       # Mac 用。ロールにしない（vm_host/ は VM
 - 確認: 別の環境で復元を試す。復元できるまで段階 4 に進まない（2026-11-23、M4 上の一時的な VM で復元を確認。`docs/k3s-backup-restore.md`）
 - 危険: 中（整合性のある取得には停止か SQLite のバックアップ機能が要る。手順は実施時に公式文書で確認する）
 
-### 段階 4: agent ノードの追加（実施中）
+### 段階 4: agent ノードの追加（実施済み）
 
-- 既存のタスクを `k3s_common`、`k3s_server` に分け、`k3s_agent` を足す。既存サーバーの dry-run が `changed=0` であることを先に確認する
+- 2026-11-23、M4 上の VM（`lima-k3s-agent`、`192.168.11.201`）が agent として参加した。両ノードが Ready、ノード間の Pod の通信とクラスタの DNS を確認し、2 回目の実行は両ノードとも `changed=0`
+- 当初はロール（`k3s_common`、`k3s_server`、`k3s_agent`）に分ける案だったが、共有するタスクが少ないため、`tasks/k3s/agent.yml` と別の play にした。server を増やすときに改めて検討する
 - join には server token ではなく agent token を使う。server token は管理者相当（[token](https://docs.k3s.io/cli/token)）。1Password に置き、`no_log` と 0600 にする
-- kubeconfig は先頭の server でだけ書く。agent は server とは別の play とタスクにし、`console` と `kiosk` は server の play にだけ置く
+- agent は server とは別の play とタスクにし、`console` と `kiosk` は server の play にだけ置く。kubeconfig を先頭の server でだけ書く変更は未実施（server を増やすときに行う。現状の評価の表を参照）
 - M4 の macOS（VM の土台）は k3s のノードではないため、別の playbook とインベントリグループにし、タスクは `tasks/vm_host/` に置く
 - M4 の VM は arm64 で、ブリッジ接続（socket_vmnet の bridged）にする。NAT では host-gw の経路が届かない。k9s の取得は amd64 の deb に固定しているので、kiosk は 2018 に限る
 - ホスト名は一意、同じ L2（host-gw の条件）、10250/tcp を全ノード間、6443/tcp を agent から server へ（[要件](https://docs.k3s.io/installation/requirements)）
