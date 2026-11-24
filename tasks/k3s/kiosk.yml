@@ -1,7 +1,8 @@
 ---
 # 本体の画面 (tty1) に k9s を常時表示する。
 # 自動ログインは使わず、シェルを持たない kiosk ユーザーの systemd サービスとして動かす。
-# 権限は閲覧専用の ServiceAccount に限る（Secret は読めない）。
+# 身元は k3s のクライアント CA で発行した証明書（CN=kiosk、毎日更新を確認）。権限は Infra.k8s の
+# ClusterRoleBinding（User kiosk、閲覧専用で Secret は読めない）が与える。
 
 - name: Download k9s
   become: true
@@ -28,85 +29,13 @@
     home: /var/lib/k9s-kiosk
     password: '!'
 
-# このディレクトリのマニフェストは k3s が自動で適用する。
-- name: Deploy the read-only service account
+# 旧方式（ServiceAccount と token）のマニフェスト。消しても既存のオブジェクトは残るので、
+# kiosk 名前空間と ClusterRoleBinding は Infra.k8s の RBAC を入れる前に手で消す。
+- name: Remove the old kiosk manifest
   become: true
-  ansible.builtin.copy:
-    dest: /var/lib/rancher/k3s/server/manifests/kiosk.yaml
-    mode: '0600'
-    content: |
-      apiVersion: v1
-      kind: Namespace
-      metadata:
-        name: kiosk
-      ---
-      apiVersion: v1
-      kind: ServiceAccount
-      metadata:
-        name: kiosk
-        namespace: kiosk
-      automountServiceAccountToken: false
-      ---
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: kiosk-token
-        namespace: kiosk
-        annotations:
-          kubernetes.io/service-account.name: kiosk
-      type: kubernetes.io/service-account-token
-      ---
-      apiVersion: rbac.authorization.k8s.io/v1
-      kind: ClusterRoleBinding
-      metadata:
-        name: kiosk-view
-      roleRef:
-        apiGroup: rbac.authorization.k8s.io
-        kind: ClusterRole
-        name: view
-      subjects:
-        - kind: ServiceAccount
-          name: kiosk
-          namespace: kiosk
-      ---
-      # 組み込みの view には、クラスタ全体のリソースであるノードなどが含まれない。
-      apiVersion: rbac.authorization.k8s.io/v1
-      kind: ClusterRole
-      metadata:
-        name: kiosk-cluster-view
-      rules:
-        - apiGroups: [""]
-          resources: [nodes, persistentvolumes]
-          verbs: [get, list, watch]
-        # k9s の CPU/MEM 表示と、起動時の待機に使う。
-        - apiGroups: [metrics.k8s.io]
-          resources: [nodes, pods]
-          verbs: [get, list]
-      ---
-      apiVersion: rbac.authorization.k8s.io/v1
-      kind: ClusterRoleBinding
-      metadata:
-        name: kiosk-cluster-view
-      roleRef:
-        apiGroup: rbac.authorization.k8s.io
-        kind: ClusterRole
-        name: kiosk-cluster-view
-      subjects:
-        - kind: ServiceAccount
-          name: kiosk
-          namespace: kiosk
-
-- name: Read the service account token
-  become: true
-  ansible.builtin.command:
-    argv: [k3s, kubectl, -n, kiosk, get, secret, kiosk-token, -o, 'jsonpath={.data.token} {.data.ca\.crt}']
-  register: kiosk_token
-  until: kiosk_token.rc == 0 and kiosk_token.stdout.split() | length == 2
-  retries: 24
-  delay: 5
-  changed_when: false
-  no_log: true
-  when: not ansible_check_mode
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests/kiosk.yaml
+    state: absent
 
 - name: Create the kiosk config directory
   become: true
@@ -118,6 +47,99 @@
     mode: '0750'
   # 初回の --check では kiosk グループがまだ存在しない。
   ignore_errors: "{{ ansible_check_mode }}"
+
+# 鍵はこのホストで作り、外に出さない。証明書は k3s のクライアント CA で署名する。
+- name: Install the kiosk certificate script
+  become: true
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/k9s-kiosk-cert
+    mode: '0755'
+    content: |
+      #!/bin/sh
+      # kiosk のクライアント証明書（CN=kiosk、1 年）を、なければ作る。残り 30 日を切ったとき、
+      # CA で検証できないとき（復元や rotate-ca の後）、鍵と合わないときは発行し直す。
+      set -eu
+      d=/etc/k9s-kiosk
+      tls=/var/lib/rancher/k3s/server/tls
+      changed=
+      umask 077
+      # タイマーと Ansible からの実行が重ならないようにする。
+      exec 9>/run/k9s-kiosk-cert.lock
+      flock 9
+      ext=$(mktemp)
+      trap 'rm -f "$ext" "$d/client.key.new" "$d/client.crt.new"' EXIT
+      if [ ! -s "$d/client.key" ]; then
+        openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out "$d/client.key.new"
+        chgrp kiosk "$d/client.key.new"; chmod 0640 "$d/client.key.new"
+        mv "$d/client.key.new" "$d/client.key"
+      fi
+      if ! cmp -s "$tls/server-ca.crt" "$d/ca.crt"; then
+        install -o root -g kiosk -m 0640 "$tls/server-ca.crt" "$d/ca.crt"
+        changed=1
+      fi
+      if [ ! -s "$d/client.crt" ] ||
+        ! openssl x509 -in "$d/client.crt" -noout -checkend 2592000 >/dev/null ||
+        ! openssl verify -partial_chain -CAfile "$tls/client-ca.crt" "$d/client.crt" >/dev/null 2>&1 ||
+        [ "$(openssl x509 -in "$d/client.crt" -noout -pubkey)" != "$(openssl pkey -in "$d/client.key" -pubout)" ]; then
+        printf 'keyUsage=critical,digitalSignature\nextendedKeyUsage=clientAuth\n' >"$ext"
+        openssl req -new -key "$d/client.key" -subj /CN=kiosk |
+          openssl x509 -req -CA "$tls/client-ca.crt" -CAkey "$tls/client-ca.key" \
+            -set_serial "0x$(openssl rand -hex 16)" -days 365 -extfile "$ext" -out "$d/client.crt.new"
+        chgrp kiosk "$d/client.crt.new"; chmod 0640 "$d/client.crt.new"
+        mv "$d/client.crt.new" "$d/client.crt"
+        changed=1
+      fi
+      if [ -n "$changed" ]; then
+        # 初回はまだ kiosk のサービスがない。API を待つ kiosk の起動は待たない。
+        systemctl --no-block try-restart k9s-kiosk.service 2>/dev/null || true
+        echo changed
+      fi
+
+- name: Install the kiosk certificate service and timer
+  become: true
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}"
+    mode: '0644'
+    content: "{{ item.content }}"
+  loop:
+    - name: k9s-kiosk-cert.service
+      content: |
+        [Unit]
+        Description=Renew the k9s kiosk client certificate
+        After=k3s.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/sbin/k9s-kiosk-cert
+    - name: k9s-kiosk-cert.timer
+      content: |
+        [Unit]
+        Description=Check the k9s kiosk client certificate daily
+
+        [Timer]
+        OnCalendar=daily
+        RandomizedDelaySec=1h
+        Persistent=true
+
+        [Install]
+        WantedBy=timers.target
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Issue or renew the kiosk client certificate
+  become: true
+  ansible.builtin.command: /usr/local/sbin/k9s-kiosk-cert
+  register: kiosk_cert
+  changed_when: "'changed' in kiosk_cert.stdout"
+
+- name: Enable the kiosk certificate timer
+  become: true
+  ansible.builtin.systemd_service:
+    name: k9s-kiosk-cert.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode
 
 - name: Write the kiosk kubeconfig
   become: true
@@ -133,21 +155,22 @@
         - name: k3s
           cluster:
             server: https://127.0.0.1:6443
-            certificate-authority-data: {{ kiosk_token.stdout.split()[1] }}
+            certificate-authority: /etc/k9s-kiosk/ca.crt
       users:
         - name: kiosk
           user:
-            token: {{ kiosk_token.stdout.split()[0] | b64decode }}
+            client-certificate: /etc/k9s-kiosk/client.crt
+            client-key: /etc/k9s-kiosk/client.key
       contexts:
         - name: kiosk
           context:
             cluster: k3s
             user: kiosk
       current-context: kiosk
+  # 旧方式の kubeconfig は token を含むため、差分を出さない。
   diff: false
-  no_log: true
-  when: not ansible_check_mode
   notify: Restart k9s kiosk
+  ignore_errors: "{{ ansible_check_mode }}"
 
 # マスクしないと、tty1 への切り替え時に logind が getty を起動しうる。
 # 通常のログインは Ctrl+Alt+F2 で行う。

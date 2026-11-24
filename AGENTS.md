@@ -18,6 +18,7 @@ This repository owns the hosts. A separate private repository, `tomoya-k31/Infra
 - There: namespaces, RBAC, workloads, Ingress, Helm charts, `HelmChartConfig` for the components k3s ships, the GitOps controller, in-cluster secrets
 - Do not add manifests here, neither in `/var/lib/rancher/k3s/server/manifests/` nor through `kubernetes.core.k8s`: deleting a file from that directory leaves its resources in the cluster, and nothing reconciles drift
 - A change that spans both, such as `disable:` for a shipped component or a CNI replacement, starts here; its replacement goes in the other repository
+- A client on a host gets its identity here and its permissions there: the k9s kiosk uses a client certificate (CN `kiosk`) issued on the server from the k3s client CA, and Infra.k8s binds RBAC to `User kiosk`. Neither side waits for the other; until the RBAC exists, the kiosk shows `forbidden`
 
 ## Public Repository
 
