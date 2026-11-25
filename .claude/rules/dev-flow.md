@@ -11,7 +11,7 @@ How an agent takes a change from an issue to a merged PR in this repository. The
 
 ## 2. Check what the diff can affect
 
-Get the changed paths with `git diff --name-only master...HEAD` (plus `git status --short` for uncommitted work) and run the matching rows. The `ansible-verify` skill runs the same steps in order.
+Get the changed paths with `git diff --name-only master...HEAD` (plus `git status --short` for uncommitted work) and run the matching rows. The `ansible-verify` skill runs the same steps in order. Run lint and ask the user for any live-host dry-run before starting the reviews in section 3; run the dry-runs while those reviews are running.
 
 | Changed paths | Run |
 |---|---|
@@ -30,7 +30,7 @@ A dry-run skips `command` and `shell` tasks unless they set `check_mode: false`:
 ## 3. Review and commit
 
 1. Stage only the files that belong to the change: `git add <files>`, never `-A` or `.`. `git status --short` must show nothing in the second column for those files.
-2. Run `/code-review` on the staged diff and `/security-review` pointed at `git diff --cached`. Fix each valid finding, re-stage, and re-run lint; bring findings that need a decision to the user.
+2. Run `/code-review` on the staged diff and `/security-review` pointed at `git diff --cached`. While they run, do the dry-runs from section 2 on the same staged files (the local ones, and the live-host ones the user has approved); do not edit files until both reviews and the dry-runs are done. Fix each valid finding, re-stage, and re-run lint, and repeat a dry-run whose files the fix changed; bring findings that need a decision to the user.
 3. Do the full-text check from Public Repository on `git diff --cached` and on any command output you will paste.
 4. Commit with `<type>: <summary>` in English, imperative, lower case after the prefix. Never `--no-verify`. Never `--amend` once pushed; fixes are new commits. The only rewrite of a pushed branch is the rebase of a `DIRTY` PR in section 6.
 
