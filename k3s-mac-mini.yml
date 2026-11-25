@@ -80,5 +80,10 @@
     - name: Include upgrade tasks
       ansible.builtin.import_tasks: tasks/k3s/upgrade.yml
       tags: [never, upgrade]
+    # server と同じく日本時間にする。Lima は VM の作成時に macOS のタイムゾーンを写すだけなので固定する。
+    - name: Set the time zone
+      become: true
+      community.general.timezone:
+        name: Asia/Tokyo
     - name: Include k3s agent tasks
       ansible.builtin.import_tasks: tasks/k3s/agent.yml
