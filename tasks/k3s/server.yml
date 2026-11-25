@@ -35,14 +35,24 @@
       - -o
       - 'jsonpath={.status.nodeInfo.kubeletVersion} {.metadata.annotations.flannel\.alpha\.coreos\.com/backend-type} {.metadata.annotations.k3s\.io/node-args}'
   register: k3s_running
-  # rc=2 は k3s が未導入の場合。起動直後など API の一時的な不調では、すぐに再インストールしない。
-  until: k3s_running.rc != 1
+  # rc=2 は k3s が未導入（コマンドがない）、NotFound はノードが未登録の場合。起動直後など API の一時的な不調では、すぐに再インストールしない。
+  until: k3s_running.rc in [0, 2] or 'NotFound' in (k3s_running.stderr | default(''))
   retries: 12
   delay: 5
   changed_when: false
   failed_when: false
+  # 再試行を使い切ると失敗になるため、次の確認で理由を示して止める。
   ignore_errors: true
   check_mode: false
+
+# API が止まり続けているときに入れ直すと、唯一の control plane を再起動してしまう。起動に失敗し続ける場合も自動では直さず、原因を手で直す。
+- name: Stop when the k3s API stays unreachable
+  ansible.builtin.assert:
+    that: k3s_running.rc in [0, 2] or 'NotFound' in (k3s_running.stderr | default(''))
+    fail_msg: >-
+      k3s is installed, but its API did not answer for about 60 seconds, so it is neither reinstalled nor restarted.
+      Check 'systemctl status k3s' and 'journalctl -u k3s' on the server, fix the cause, and run again.
+      kubectl said: {{ k3s_running.stderr | default(k3s_running.msg | default(''), true) }}
 
 - name: Create the k3s config directory
   become: true

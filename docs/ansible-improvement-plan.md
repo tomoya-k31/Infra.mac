@@ -19,7 +19,6 @@
 | 優先 | 課題 | 場所 |
 |---|---|---|
 | 中 | kubeconfig を server ごとに同じファイルへ書く。server を 2 台以上にすると最後の server で上書きされる（agent は書かない） | `tasks/k3s/kubeconfig.yml` |
-| 中 | API が 1 分以上止まっていると、稼働中の k3s を未導入とみなして再起動しうる | `tasks/k3s/server.yml` |
 
 ## 目標の構成
 
