@@ -1,12 +1,12 @@
 # Ansible 構成の改善プラン
 
-2026-11 時点の調査に基づく提案です。段階 0、段階 1、段階 3、段階 4 と、段階 2 のうち Mac 用タスクの指摘の修正を実施済みです。残りは着手前に承認を得ます。
+2026-11 時点の調査に基づく提案です。段階 0 から段階 4 までを実施済みです。残りは着手前に承認を得ます。
 
 ## 対象と方針
 
 | 対象 | 現在 | 将来 |
 |---|---|---|
-| 開発用 Mac | `localhost-mac.yml`（全台同じ内容） | 複数台。用途ごとに差分を持つ |
+| 開発用 Mac | `localhost-mac.yml`（共通 + プロファイル） | 複数台。用途ごとに差分を持つ |
 | k3s サーバー | Mac mini 2018、単一ノード、SQLite | 稼働を続ける |
 | 追加の k3s ノード | M4 Mac mini 上の Linux VM（agent） | 必要になったら agent を足す |
 
@@ -19,7 +19,6 @@
 | 優先 | 課題 | 場所 |
 |---|---|---|
 | 中 | kubeconfig を server ごとに同じファイルへ書く。server を 2 台以上にすると最後の server で上書きされる（agent は書かない） | `tasks/k3s/kubeconfig.yml` |
-| 中 | Mac ごとの差分を表せない | `tasks/homebrew.yml` |
 | 中 | API が 1 分以上止まっていると、稼働中の k3s を未導入とみなして再起動しうる | `tasks/k3s/server.yml` |
 
 ## 目標の構成
@@ -57,11 +56,12 @@ tasks/                       # Mac 用。ロールにしない（vm_host/ は VM
 - 確認: 移行前の play の `vars` と、移行後の `ansible-inventory --host mac-mini-2018` が同じ。dry-run が `changed=0`（`--tags all,upgrade,console,kiosk` で確認。保留中の apt 更新があると upgrade のタスクだけは changed になる。最終のコミットでの `PLAY RECAP` の件数だけを PR に記載し、`--diff` の出力は載せない）
 - 危険: 低（サーバーの状態は変えない）。戻し方: revert
 
-### 段階 2: Mac の複数台対応
+### 段階 2: Mac の複数台対応（実施済み）
 
 - Homebrew の一覧を `vars/mac/` へ移し、共通分とプロファイル分を結合する。プロファイル未指定は失敗にする
 - 確認: 各 Mac で dry-run の後に実行し、2 回目が `changed=0`。dry-run では動かない `command` のタスクがあるため、実機で 1 台ずつ確認する
 - 危険: 低〜中
+- 2026-11-25、`vars/mac/common.yml` と `vars/mac/personal.yml` に分けた。`-e mac_profile=<profile>` が無いと失敗する。手元の Mac で 2 回目の実行が `changed=0`
 
 ### 段階 3: k3s のバックアップ（実施済み）
 

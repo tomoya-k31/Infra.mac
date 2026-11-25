@@ -34,8 +34,8 @@ This repository is public, and squash merges copy PR text permanently into git h
 
 ```shell
 # Local Mac: dry-run, then execute
-ansible-playbook localhost-mac.yml --diff --check
-ansible-playbook localhost-mac.yml
+ansible-playbook localhost-mac.yml -e mac_profile=personal --diff --check
+ansible-playbook localhost-mac.yml -e mac_profile=personal
 
 # k3s server: dry-run, then execute (may prompt for 1Password approval)
 ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh --diff --check
@@ -123,7 +123,7 @@ Where this repository differs from the imported content:
 
 `localhost-mac.yml` orchestrates four task modules:
 
-1. **tasks/homebrew.yml** - Homebrew formulae and casks
+1. **tasks/homebrew.yml** - Homebrew formulae and casks from `vars/mac/common.yml` plus `vars/mac/<mac_profile>.yml`; the play fails without `-e mac_profile=<profile>`
 2. **tasks/langs.yml** - Language runtime installations (Rust, SDKMAN)
 3. **tasks/tools.yml** - Additional tools (Krew plugins, SOPS, hishtory, Alacritty terminfo)
 4. **tasks/macos_defaults.yml** - macOS system preferences via `defaults` (screenshot location)
@@ -146,8 +146,8 @@ Helper scripts live in `scripts/`. The target layout and its migration steps are
 
 - XDG Base Directory paths are used consistently (e.g., `$XDG_DATA_HOME/rustup`)
 - Installers must not edit shell configuration (`~/.zshrc` and so on); dotfiles own it. Pass the flag that turns this off, such as `--no-modify-path`, `rcupdate=false`, or `--skip-config-modification`
-- Removing an entry from `tasks/homebrew.yml` or `tasks/tools.yml` does not uninstall it
-- `localhost-mac.yml` runs locally (`hosts: localhost`, `connection: local`) and needs no inventory
+- Removing an entry from `vars/mac/` or `tasks/tools.yml` does not uninstall it
+- `localhost-mac.yml` runs locally (`hosts: localhost`, `connection: local`) and needs no inventory. Macs are not listed anywhere, so `--limit` cannot be forgotten; a profile picks the packages, and Mac host names stay out of the repository
 
 ### k3s server
 

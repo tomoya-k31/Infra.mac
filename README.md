@@ -25,11 +25,13 @@ A repository for managing macOS infrastructure using Ansible.
 
 ```shell
 # Run a dry-run to see potential changes
-$ ansible-playbook localhost-mac.yml --diff --check
+$ ansible-playbook localhost-mac.yml -e mac_profile=personal --diff --check
 
 # Execute the playbook
-$ ansible-playbook localhost-mac.yml
+$ ansible-playbook localhost-mac.yml -e mac_profile=personal
 ```
+
+Every Mac gets the Homebrew packages in `vars/mac/common.yml` plus those in `vars/mac/<profile>.yml`. The playbook fails without a profile. To add a Mac, add a profile file with `mac_profile_brew_formulae` and `mac_profile_brew_casks`. Removing a package from a list does not uninstall it.
 
 `localhost-mac.yml` does not edit shell configuration, so a new Mac needs these lines in `~/.zshrc` (or `$ZDOTDIR/.zshrc`); only zsh is covered. Put them after `compinit` and other Ctrl+R integrations, and before tool activation such as mise. Until they are added, hishtory records nothing and `sdk` is not found.
 
@@ -111,6 +113,7 @@ $ ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/v
 ├── localhost-mac.yml       # Main Ansible playbook (local Mac)
 ├── k3s-mac-mini.yml        # Ansible playbook for the k3s server
 ├── k3s-vm-host.yml         # Ansible playbook for the macOS host of the k3s VM
+├── vars/mac/               # Homebrew packages: common.yml for every Mac, <profile>.yml per Mac
 ├── inventory/              # Inventory for the k3s nodes and the VM host (hosts.yml, group_vars, host_vars)
 ├── requirements.yml        # Collections ansible-lint needs
 ├── README.md               # This documentation file
@@ -125,7 +128,7 @@ $ ansible-playbook -i inventory k3s-vm-host.yml --become-password-file scripts/v
 │   └── update-ai-content.sh  # Imports third-party AI content at pinned commits (needs Lola)
 ├── third_party/            # Licenses of the imported AI content
 └── tasks/
-    ├── homebrew.yml        # Tasks for Homebrew formulae and casks
+    ├── homebrew.yml        # Tasks for Homebrew formulae and casks (lists in vars/mac/)
     ├── tools.yml           # Tasks for other tools (Krew plugins, SOPS, hishtory, Alacritty terminfo)
     ├── langs.yml           # Tasks for language tools (Rust, SDKMAN)
     ├── macos_defaults.yml  # Tasks for macOS system preferences

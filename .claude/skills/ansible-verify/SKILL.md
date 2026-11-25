@@ -10,7 +10,7 @@ Run the steps in order and stop at the first failure. Report each command with i
 1. Lint, including syntax checks: `env -u ANSIBLE_HOME ansible-lint`
 2. If `.github/workflows/` changed: `gh actions-lock --verify`
 3. If `scripts/` changed: `shellcheck` on each changed `sh` or `bash` script
-4. If `localhost-mac.yml` or `tasks/*.yml` changed: `ansible-playbook localhost-mac.yml --diff --check`
+4. If `localhost-mac.yml`, `tasks/*.yml`, or `vars/mac/` changed: `ansible-playbook localhost-mac.yml -e mac_profile=<profile> --diff --check` for each profile the change touches (`personal` when only `common.yml` changed)
 5. If `k3s-mac-mini.yml`, the `k3s` part of `inventory/` (the `k3s` group in `hosts.yml`, `group_vars/k3s*.yml`, and `host_vars/` of hosts in the `k3s` group), or `tasks/k3s/` changed, ask the user first, because 1Password prompts for approval:
    `ansible-playbook -i inventory k3s-mac-mini.yml --become-password-file scripts/become-password.sh --diff --check`
    Add the opt-in parts that the change affects, or their tasks are skipped: `--tags all,kiosk` for `kiosk.yml` and `k9s_*`, `--tags all,console` for `console.yml` and `console_kernel_params`, `--tags all,upgrade` for `upgrade.yml`, `--tags backup` for `backup.yml` (a dry-run skips every task, so it touches nothing and writes no backup); combine them as `all,kiosk,console`. Expect `changed=0` unless the change is meant to alter the server; `upgrade` also reports pending apt packages.
