@@ -16,9 +16,7 @@
 
 良い点: FQCN、`ansible-lint` の production プロファイル、チェックサム（k3s、k9s）、`no_log`、タスク単位の `become`、CI、SHA と lockfile による Actions の固定。
 
-| 優先 | 課題 | 場所 |
-|---|---|---|
-| 中 | kubeconfig を server ごとに同じファイルへ書く。server を 2 台以上にすると最後の server で上書きされる（agent は書かない） | `tasks/k3s/kubeconfig.yml` |
+指摘した課題（kubeconfig の書き込み元、Mac ごとの差分、API 停止時の再起動）はすべて対応済みです。
 
 ## 目標の構成
 
@@ -73,7 +71,7 @@ tasks/                       # Mac 用。ロールにしない（vm_host/ は VM
 - 2026-11-23、M4 上の VM（`lima-k3s-agent`、`192.168.11.201`）が agent として参加した。両ノードが Ready、ノード間の Pod の通信とクラスタの DNS を確認し、2 回目の実行は両ノードとも `changed=0`
 - 当初はロール（`k3s_common`、`k3s_server`、`k3s_agent`）に分ける案だったが、共有するタスクが少ないため、`tasks/k3s/agent.yml` と別の play にした。server を増やすときに改めて検討する
 - join には server token ではなく agent token を使う。server token は管理者相当（[token](https://docs.k3s.io/cli/token)）。1Password に置き、`no_log` と 0600 にする
-- agent は server とは別の play とタスクにし、`console` と `kiosk` は server の play にだけ置く。kubeconfig を先頭の server でだけ書く変更は未実施（server を増やすときに行う。現状の評価の表を参照）
+- agent は server とは別の play とタスクにし、`console` と `kiosk` は server の play にだけ置く。kubeconfig は inventory の先頭の server からだけ書く（HA にするときは、固定の server と VIP のどちらを指すかを決め直す）
 - M4 の macOS（VM の土台）は k3s のノードではないため、別の playbook とインベントリグループにし、タスクは `tasks/vm_host/` に置く
 - M4 の VM は arm64 で、ブリッジ接続（socket_vmnet の bridged）にする。NAT では host-gw の経路が届かない。k9s の取得は amd64 の deb に固定しているので、kiosk は 2018 に限る
 - ホスト名は一意、同じ L2（host-gw の条件）、10250/tcp を全ノード間、6443/tcp を agent から server へ（[要件](https://docs.k3s.io/installation/requirements)）
