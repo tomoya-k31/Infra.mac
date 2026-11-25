@@ -16,7 +16,7 @@ Get the changed paths with `git diff --name-only master...HEAD` (plus `git statu
 | Changed paths | Run |
 |---|---|
 | anything | `env -u ANSIBLE_HOME ansible-lint` to zero findings (CI: `Run ansible-lint`) |
-| `localhost-mac.yml`, `tasks/*.yml` | `ansible-playbook localhost-mac.yml --diff --check` |
+| `localhost-mac.yml`, `tasks/*.yml`, `vars/mac/` | `ansible-playbook localhost-mac.yml -e mac_profile=<profile> --diff --check` for each profile the change touches |
 | `k3s-mac-mini.yml`, `tasks/k3s/`, the `k3s` part of `inventory/` | ask the user, then the k3s dry-run from `AGENTS.md` Commands, with the `--tags` the change touches (see `ansible-verify`) |
 | `k3s-vm-host.yml`, `tasks/vm_host/`, the `vm_hosts` part of `inventory/` | ask the user, then the VM host dry-run from `AGENTS.md` Commands |
 | `scripts/*.sh` | `shellcheck` on each changed script; keep the `*become-password.sh` scripts executable |

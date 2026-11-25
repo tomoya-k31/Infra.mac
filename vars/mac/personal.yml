@@ -1,0 +1,5 @@
+---
+# Homebrew packages only for the personal Mac, added to vars/mac/common.yml.
+
+mac_profile_brew_formulae: []
+mac_profile_brew_casks: []

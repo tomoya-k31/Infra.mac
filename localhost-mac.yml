@@ -6,6 +6,25 @@
   vars:
     xdg_data_home: "{{ lookup('env', 'XDG_DATA_HOME') | default(lookup('env', 'HOME') + '/.local/share', true) }}"
 
+  pre_tasks:
+    - name: Check the Mac profile
+      ansible.builtin.assert:
+        that:
+          - mac_profile is defined
+          - mac_profile is match('^[a-z0-9_-]+$')
+          - mac_profile != 'common'
+          - (playbook_dir ~ '/vars/mac/' ~ mac_profile ~ '.yml') is file
+        fail_msg: "Pass a profile that has a file in vars/mac/, e.g. -e mac_profile=personal"
+        quiet: true
+      tags: [always]
+    - name: Load the common and profile package lists
+      ansible.builtin.include_vars:
+        file: "{{ item }}"
+      loop:
+        - vars/mac/common.yml
+        - "vars/mac/{{ mac_profile }}.yml"
+      tags: [always]
+
   tasks:
     - name: Include Homebrew tasks
       ansible.builtin.import_tasks: tasks/homebrew.yml
