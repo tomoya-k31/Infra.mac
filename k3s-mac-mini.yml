@@ -17,6 +17,12 @@
     - name: Include upgrade tasks
       ansible.builtin.import_tasks: tasks/k3s/upgrade.yml
       tags: [never, upgrade]
+    # 画面とログの時刻を日本時間にする。動いている k3s は次の再起動まで UTC のまま。
+    # timeZone を指定しない CronJob は、k3s の再起動後に日本時間で解釈される。
+    - name: Set the time zone
+      become: true
+      community.general.timezone:
+        name: Asia/Tokyo
     - name: Include k3s server tasks
       ansible.builtin.import_tasks: tasks/k3s/server.yml
     - name: Include kubeconfig tasks
